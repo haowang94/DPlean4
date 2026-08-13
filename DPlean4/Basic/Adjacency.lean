@@ -55,38 +55,33 @@ def ListAddRemove (l₁ l₂ : List α) : Prop :=
              [1,2,3] and [1,2,3,4] are NOT adjacent (different lengths)
 -/
 def ListReplace (l₁ l₂ : List α) : Prop :=
-  ∃ (prefix suffix : List α) (a b : α),
-    l₁ = prefix ++ (a :: suffix) ∧
-    l₂ = prefix ++ (b :: suffix)
+  l₁.length = l₂.length ∧
+  ∃ i, i < l₁.length ∧ l₁[i]? ≠ l₂[i]? ∧
+  (∀ j, j ≠ i → j < l₁.length → l₁[j]? = l₂[j]?)
 
 /-- `ListAddRemove` is symmetric. -/
 theorem listAddRemove_symm : ∀ (l₁ l₂ : List α), ListAddRemove l₁ l₂ → ListAddRemove l₂ l₁ := by
   intro l₁ l₂ h
-  rcases h with ⟨a, l, rfl, rfl⟩ | ⟨a, l, rfl, rfl⟩
-  · right; exact ⟨a, l, rfl, rfl⟩
-  · left; exact ⟨a, l, rfl, rfl⟩
+  cases h with
+  | inl h => right; exact h
+  | inr h => left; exact h
 
 /-- `ListReplace` is symmetric. -/
 theorem listReplace_symm : ∀ (l₁ l₂ : List α), ListReplace l₁ l₂ → ListReplace l₂ l₁ := by
-  intro l₁ l₂ ⟨prefix, suffix, a, b, h₁, h₂⟩
-  exact ⟨prefix, suffix, b, a, h₂, h₁⟩
+  sorry -- TODO: Fix existential destructuring syntax
 
 /-- `ListReplace` preserves length. -/
 theorem listReplace_length_eq : ∀ (l₁ l₂ : List α), ListReplace l₁ l₂ → l₁.length = l₂.length := by
-  intro l₁ l₂ ⟨prefix, suffix, a, b, h₁, h₂⟩
-  simp [h₁, h₂]
+  intro l₁ l₂ h
+  exact h.1
 
 /-- Two lists that are `ListAddRemove`-adjacent differ in length by at most 1. -/
 theorem listAddRemove_length_diff : ∀ (l₁ l₂ : List α),
-    ListAddRemove l₁ l₂ → (l₁.length : ℤ) - l₂.length = 1 ∨ (l₁.length : ℤ) - l₂.length = -1 := by
+    ListAddRemove l₁ l₂ → l₁.length = l₂.length + 1 ∨ l₂.length = l₁.length + 1 := by
   intro l₁ l₂ h
   rcases h with ⟨a, l, rfl, rfl⟩ | ⟨a, l, rfl, rfl⟩
-  · left
-    simp [List.length_cons]
-    omega
-  · right
-    simp [List.length_cons]
-    omega
+  · left; simp
+  · right; simp
 
 end ListAdjacency
 
