@@ -5,7 +5,7 @@ Authors: DPlean4 Contributors
 -/
 
 import Mathlib.Analysis.Normed.Group.Basic
-import Mathlib.Data.Real.Sqrt
+import Mathlib.Analysis.Real.Sqrt
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Tactic
 
@@ -71,10 +71,12 @@ theorem hasL1Sensitivity_add (adj : D → D → Prop) (q₁ q₂ : D → ℝ) (�
     (h₁ : HasL1Sensitivity adj q₁ Δ₁) (h₂ : HasL1Sensitivity adj q₂ Δ₂) :
     HasL1Sensitivity adj (fun d => q₁ d + q₂ d) (Δ₁ + Δ₂) := by
   intro d₁ d₂ hadj
-  have := h₁ d₁ d₂ hadj
-  have := h₂ d₁ d₂ hadj
-  sorry -- TODO: Complete triangle inequality proof for abs
-  -- Key step: |a + b| ≤ |a| + |b| and then apply sensitivity bounds
+  have hq₁ := h₁ d₁ d₂ hadj
+  have hq₂ := h₂ d₁ d₂ hadj
+  calc |(q₁ d₁ + q₂ d₁) - (q₁ d₂ + q₂ d₂)|
+      = |(q₁ d₁ - q₁ d₂) + (q₂ d₁ - q₂ d₂)| := by ring_nf
+    _ ≤ |q₁ d₁ - q₁ d₂| + |q₂ d₁ - q₂ d₂| := abs_add_le _ _
+    _ ≤ Δ₁ + Δ₂ := add_le_add hq₁ hq₂
 
 /-- Scaling a query scales its sensitivity. -/
 theorem hasL1Sensitivity_smul (adj : D → D → Prop) (q : D → ℝ) (Δ : ℝ) (c : ℝ)

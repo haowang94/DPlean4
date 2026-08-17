@@ -84,7 +84,7 @@ Proof strategy (to be completed when we can construct discrete measures):
 3. This is exactly the ε-DP bound.
 -/
 theorem randomizedResponse_isPureDP (ε : NNReal) (hε : 0 < ε) :
-    randomizedResponseDP ε hε satisfies[SingleBitAdjacent] (ε)-DP := by
+    IsPureDP SingleBitAdjacent (randomizedResponseDP ε hε) ε := by
   sorry -- Proof requires discrete probability measure infrastructure
   -- The key calculation:
   -- P(output = b₁ | input = b₁) / P(output = b₁ | input = b₂)

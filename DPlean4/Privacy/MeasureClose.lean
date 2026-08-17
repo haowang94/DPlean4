@@ -7,6 +7,7 @@ Authors: DPlean4 Contributors
 import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 import Mathlib.Data.NNReal.Basic
 import Mathlib.Data.Real.Basic
+import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 
 /-!
 # Measure Closeness for Differential Privacy
@@ -82,20 +83,15 @@ theorem pureMeasureClose_refl (μ : ProbabilityMeasure O) : μ ≤[0] μ :=
 
 /-- `MeasureClose` is monotone in ε: if μ ≤[ε₁,δ] ν and ε₁ ≤ ε₂, then μ ≤[ε₂,δ] ν. -/
 theorem measureClose_epsilon_mono {ε₁ ε₂ δ : NNReal} {μ ν : ProbabilityMeasure O}
-    (h : μ ≤[ε₁, δ] ν) (hle : ε₁ ≤ ε₂) : μ ≤[ε₂, δ] ν := by
+    (h : μ ≤[ε₁,δ] ν) (hle : ε₁ ≤ ε₂) : μ ≤[ε₂,δ] ν := by
   intro s hs
-  have h1 := h s hs
-  sorry -- TODO: Complete ENNReal arithmetic proof
-  -- The key step: exp(ε₁) ≤ exp(ε₂) implies
-  -- exp(ε₁) * ν(s) + δ ≤ exp(ε₂) * ν(s) + δ
+  exact le_trans (h s hs) (by gcongr)
 
 /-- `MeasureClose` is monotone in δ: if μ ≤[ε,δ₁] ν and δ₁ ≤ δ₂, then μ ≤[ε,δ₂] ν. -/
 theorem measureClose_delta_mono {ε : NNReal} {δ₁ δ₂ : NNReal} {μ ν : ProbabilityMeasure O}
-    (h : μ ≤[ε, δ₁] ν) (hle : δ₁ ≤ δ₂) : μ ≤[ε, δ₂] ν := by
+    (h : μ ≤[ε,δ₁] ν) (hle : δ₁ ≤ δ₂) : μ ≤[ε,δ₂] ν := by
   intro s hs
-  sorry -- TODO: Complete ENNReal arithmetic proof
-  -- The key step: δ₁ ≤ δ₂ implies
-  -- exp(ε) * ν(s) + δ₁ ≤ exp(ε) * ν(s) + δ₂
+  exact le_trans (h s hs) (by gcongr)
 
 /-- Pure ε-closeness implies (ε,δ)-closeness for any δ. -/
 theorem pureMeasureClose_to_measureClose {ε : NNReal} (δ : NNReal) {μ ν : ProbabilityMeasure O}

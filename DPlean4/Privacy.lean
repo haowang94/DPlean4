@@ -7,3 +7,5 @@ Authors: DPlean4 Contributors
 import DPlean4.Privacy.MeasureClose
 import DPlean4.Privacy.Pure
 import DPlean4.Privacy.Approximate
+import DPlean4.Privacy.Postprocessing
+import DPlean4.Privacy.Composition

@@ -68,7 +68,8 @@ theorem listAddRemove_symm : ∀ (l₁ l₂ : List α), ListAddRemove l₁ l₂ 
 
 /-- `ListReplace` is symmetric. -/
 theorem listReplace_symm : ∀ (l₁ l₂ : List α), ListReplace l₁ l₂ → ListReplace l₂ l₁ := by
-  sorry -- TODO: Fix existential destructuring syntax
+  intro l₁ l₂ ⟨hlen, i, hi, hne, heq⟩
+  exact ⟨hlen.symm, i, hlen ▸ hi, hne.symm, fun j hji hj => (heq j hji (hlen.symm ▸ hj)).symm⟩
 
 /-- `ListReplace` preserves length. -/
 theorem listReplace_length_eq : ∀ (l₁ l₂ : List α), ListReplace l₁ l₂ → l₁.length = l₂.length := by
