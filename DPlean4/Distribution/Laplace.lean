@@ -144,14 +144,28 @@ instance instIsProbabilityMeasureLaplace (μ : ℝ) (b : ℝ≥0) :
 theorem laplacePDFReal_ratio_le (μ₁ μ₂ : ℝ) {b : ℝ≥0} (hb : b ≠ 0) (x : ℝ) :
     laplacePDFReal μ₁ b x / laplacePDFReal μ₂ b x ≤
       rexp (|μ₁ - μ₂| / (b : ℝ)) := by
-  sorry -- TODO: Cancel (2b)⁻¹, use exp(a)/exp(b) = exp(a-b), reverse triangle ineq
+  rw [div_le_iff (laplacePDFReal_pos μ₂ hb x)]
+  exact laplacePDFReal_le_exp_mul μ₁ μ₂ hb x
 
 /-- Equivalent formulation: the density at x under μ₁ is at most
     exp(|μ₁-μ₂|/b) times the density at x under μ₂. -/
 theorem laplacePDFReal_le_exp_mul (μ₁ μ₂ : ℝ) {b : ℝ≥0} (hb : b ≠ 0) (x : ℝ) :
     laplacePDFReal μ₁ b x ≤
       rexp (|μ₁ - μ₂| / (b : ℝ)) * laplacePDFReal μ₂ b x := by
-  sorry -- TODO: Follows from ratio bound + positivity
+  have hb_pos : (0 : ℝ) < b := by positivity
+  have key : |x - μ₂| - |x - μ₁| ≤ |μ₁ - μ₂| := by
+    have h := abs_sub_abs_le_abs_sub (x - μ₂) (x - μ₁)
+    have : (x - μ₂) - (x - μ₁) = μ₁ - μ₂ := by ring
+    rw [this] at h; exact h
+  unfold laplacePDFReal
+  rw [mul_comm (rexp (|μ₁ - μ₂| / ↑b)) _, mul_assoc]
+  apply mul_le_mul_of_nonneg_left _ (inv_nonneg.mpr (by positivity : (0 : ℝ) ≤ 2 * ↑b))
+  rw [← Real.exp_add]
+  apply Real.exp_le_exp_of_le
+  simp only [div_eq_mul_inv]
+  rw [← add_mul]
+  apply mul_le_mul_of_nonneg_right _ (inv_nonneg.mpr (le_of_lt hb_pos))
+  linarith
 
 -- ============================================================================
 -- Translation Law
