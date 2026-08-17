@@ -72,9 +72,8 @@ theorem countQuery_sensitivity : HasL1Sensitivity ListAddRemove (countQuery : Li
     norm_num
   | inr h =>
     have : (l₁.length : ℝ) - (l₂.length : ℝ) = -1 := by
-      simp; exact_mod_cast h
+      push_cast; omega
     simp [this]
-    norm_num
 
 /-- A constant query has zero sensitivity (regardless of adjacency) -/
 example (c : ℝ) : HasL1Sensitivity ListAddRemove (fun (_ : List α) => c) 0 :=

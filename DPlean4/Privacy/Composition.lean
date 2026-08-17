@@ -62,14 +62,25 @@ theorem measureClose_trans {ε₁ ε₂ : NNReal} {δ₁ δ₂ : NNReal}
     {μ ν ρ : ProbabilityMeasure O}
     (h₁ : MeasureClose ε₁ δ₁ μ ν) (h₂ : MeasureClose ε₂ δ₂ ν ρ) :
     MeasureClose (ε₁ + ε₂) (⟨Real.exp ε₁ * δ₂ + δ₁, by positivity⟩) μ ρ := by
-  sorry -- TODO: Requires careful ENNReal arithmetic
-  -- Key steps:
-  -- 1. μ(s) ≤ exp(ε₁) * ν(s) + δ₁
-  -- 2. ν(s) ≤ exp(ε₂) * ρ(s) + δ₂
-  -- 3. Substitute (2) into (1):
-  --    μ(s) ≤ exp(ε₁) * (exp(ε₂) * ρ(s) + δ₂) + δ₁
-  --         = exp(ε₁) * exp(ε₂) * ρ(s) + exp(ε₁) * δ₂ + δ₁
-  --         = exp(ε₁+ε₂) * ρ(s) + (exp(ε₁) * δ₂ + δ₁)
+  intro s hs
+  have key : μ.toMeasure s ≤ ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * ρ.toMeasure s +
+      (ENNReal.ofReal (Real.exp ε₁) * ↑δ₂ + ↑δ₁) := by
+    calc μ.toMeasure s
+        ≤ ENNReal.ofReal (Real.exp ε₁) * ν.toMeasure s + ↑δ₁ := h₁ s hs
+      _ ≤ ENNReal.ofReal (Real.exp ε₁) *
+          (ENNReal.ofReal (Real.exp ε₂) * ρ.toMeasure s + ↑δ₂) + ↑δ₁ := by
+          gcongr; exact h₂ s hs
+      _ = ENNReal.ofReal (Real.exp ε₁) * (ENNReal.ofReal (Real.exp ε₂) * ρ.toMeasure s) +
+          ENNReal.ofReal (Real.exp ε₁) * ↑δ₂ + ↑δ₁ := by rw [mul_add]
+      _ = ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * ρ.toMeasure s +
+          (ENNReal.ofReal (Real.exp ε₁) * ↑δ₂ + ↑δ₁) := by
+          rw [add_assoc]; congr 1
+          rw [← mul_assoc, ← ENNReal.ofReal_mul (Real.exp_nonneg _),
+              ← Real.exp_add, NNReal.coe_add]
+  refine le_trans key (le_of_eq ?_)
+  congr 1
+  rw [ENNReal.ofReal_eq_coe_nnreal (Real.exp_nonneg _), ← ENNReal.coe_mul, ← ENNReal.coe_add]
+  norm_cast
 
 /-- Simpler transitivity for pure DP: chaining two pure bounds gives a pure bound. -/
 theorem pureMeasureClose_trans {ε₁ ε₂ : NNReal}
@@ -132,6 +143,24 @@ theorem isPureDP_group {adj : D → D → Prop} {M : Mechanism D O₁} {ε : NNR
       chain ⟨k + 1, by omega⟩ = d₂ ∧
       ∀ i : Fin (k + 1), adj (chain i.castSucc) (chain i.succ)) :
     PureMeasureClose ((k + 1) * ε) (M d₁) (M d₂) := by
-  sorry -- TODO: induction on k, using pureMeasureClose_trans at each step
+  obtain ⟨chain, hstart, hend, hadj_chain⟩ := hchain
+  subst hstart; subst hend
+  suffices h : ∀ (m : ℕ) (hm : m + 1 < k + 2),
+      PureMeasureClose ((m + 1) * ε) (M (chain ⟨0, by omega⟩))
+        (M (chain ⟨m + 1, hm⟩)) from
+    h k (by omega)
+  intro m hm
+  induction m with
+  | zero =>
+    simp only [Nat.cast_zero, zero_add, one_mul]
+    exact hM _ _ (hadj_chain ⟨0, by omega⟩)
+  | succ n ih =>
+    have h1 := ih (by omega)
+    have h2 : PureMeasureClose ε (M (chain ⟨n + 1, by omega⟩))
+        (M (chain ⟨n + 2, hm⟩)) :=
+      hM _ _ (hadj_chain ⟨n + 1, by omega⟩)
+    have h3 := pureMeasureClose_trans h1 h2
+    convert h3 using 1
+    push_cast; ring
 
 end DPlean4

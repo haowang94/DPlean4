@@ -8,6 +8,9 @@ import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 import Mathlib.MeasureTheory.Measure.WithDensity
 import Mathlib.MeasureTheory.Measure.Dirac
 import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
+import Mathlib.MeasureTheory.Measure.Lebesgue.Integral
+import Mathlib.MeasureTheory.Group.LIntegral
 import Mathlib.Probability.Density
 
 /-!
@@ -39,7 +42,7 @@ noncomputable section
 
 namespace DPlean4
 
-open MeasureTheory
+open MeasureTheory Set
 open scoped ENNReal NNReal Real
 
 -- ============================================================================
@@ -100,11 +103,66 @@ theorem measurable_laplacePDF (μ : ℝ) (b : ℝ≥0) :
   unfold laplacePDF
   fun_prop
 
+/-- The Laplace density (centered at 0) is integrable. -/
+theorem integrable_laplacePDFReal {b : ℝ≥0} (hb : b ≠ 0) :
+    Integrable (laplacePDFReal 0 b) := by
+  have hb_pos : (0 : ℝ) < b := by positivity
+  have hbinv_pos : (0 : ℝ) < (↑b)⁻¹ := inv_pos_of_pos hb_pos
+  rw [← integrableOn_univ, ← Iic_union_Ioi (a := (0 : ℝ))]
+  apply IntegrableOn.union
+  · apply IntegrableOn.congr_fun
+      (f := fun x => (2 * (b : ℝ))⁻¹ * rexp ((↑b)⁻¹ * x))
+    · exact (integrableOn_exp_mul_Iic hbinv_pos 0).const_mul _
+    · intro x hx
+      simp only [laplacePDFReal, sub_zero, mem_Iic] at *
+      congr 1; rw [abs_of_nonpos hx, neg_neg, inv_mul_eq_div]
+    · exact measurableSet_Iic
+  · apply IntegrableOn.congr_fun
+      (f := fun x => (2 * (b : ℝ))⁻¹ * rexp ((-(↑b)⁻¹) * x))
+    · exact (integrableOn_exp_mul_Ioi (by linarith : (-(↑b)⁻¹ : ℝ) < 0) 0).const_mul _
+    · intro x hx
+      unfold laplacePDFReal
+      simp only [sub_zero]
+      congr 1; congr 1
+      rw [abs_of_pos (mem_Ioi.mp hx)]
+      ring_nf
+    · exact measurableSet_Ioi
+
+/-- The Bochner integral of the centered Laplace density equals 1. -/
+theorem integral_laplacePDFReal_eq_one {b : ℝ≥0} (hb : b ≠ 0) :
+    ∫ x, laplacePDFReal 0 b x = 1 := by
+  have hb_pos : (0 : ℝ) < b := by positivity
+  have hb_ne : (b : ℝ) ≠ 0 := ne_of_gt hb_pos
+  have hbinv_pos : (0 : ℝ) < (↑b)⁻¹ := inv_pos_of_pos hb_pos
+  have hbinv_neg : (-(↑b)⁻¹ : ℝ) < 0 := by linarith
+  simp_rw [laplacePDFReal, sub_zero]
+  rw [integral_const_mul]
+  have key : ∫ x : ℝ, rexp (-|x| / ↑b) = 2 * ∫ x in Ioi (0 : ℝ), rexp (-x / ↑b) := by
+    exact @integral_comp_abs (fun y => rexp (-y / ↑b))
+  rw [key]
+  have key2 : (fun x : ℝ => rexp (-x / ↑b)) = fun x => rexp ((-(↑b)⁻¹) * x) := by
+    ext x; congr 1; rw [neg_div, neg_mul, inv_mul_eq_div]
+  rw [key2, integral_exp_mul_Ioi hbinv_neg 0]
+  simp only [mul_zero, Real.exp_zero]
+  field_simp
+
 /-- The Lebesgue integral of the Laplace density equals 1 (when b > 0). -/
 @[simp]
 theorem lintegral_laplacePDF_eq_one (μ : ℝ) {b : ℝ≥0} (hb : b ≠ 0) :
     ∫⁻ x, laplacePDF μ b x = 1 := by
-  sorry -- TODO: Integration proof via translation + splitting + exponential integral
+  -- Step 1: Translate to center at 0
+  have htranslate : (fun x => laplacePDF μ b x) = fun x => laplacePDF 0 b (x - μ) := by
+    ext x; simp [laplacePDF, laplacePDFReal, sub_zero]
+  rw [htranslate]
+  rw [show (fun x => laplacePDF 0 b (x - μ)) = (fun x => laplacePDF 0 b (x + (-μ))) from by
+    ext x; rw [sub_eq_add_neg]]
+  rw [lintegral_add_right_eq_self (laplacePDF 0 b) (-μ)]
+  -- Step 2: Convert from lintegral to Bochner integral
+  rw [show (fun x => laplacePDF 0 b x) = (fun x => ENNReal.ofReal (laplacePDFReal 0 b x)) from rfl]
+  rw [← ofReal_integral_eq_lintegral_ofReal (integrable_laplacePDFReal hb)
+    (ae_of_all _ (laplacePDFReal_nonneg 0 b))]
+  rw [integral_laplacePDFReal_eq_one hb]
+  simp
 
 -- ============================================================================
 -- Layer 3: The Laplace Measure
@@ -137,17 +195,7 @@ instance instIsProbabilityMeasureLaplace (μ : ℝ) (b : ℝ≥0) :
 -- Density Ratio Bound (key lemma for DP)
 -- ============================================================================
 
-/-- The pointwise density ratio of two Laplace distributions with the same scale
-    but different locations is bounded by exp(|μ₁ - μ₂| / b).
-
-    This is the core calculation behind the Laplace mechanism's ε-DP proof. -/
-theorem laplacePDFReal_ratio_le (μ₁ μ₂ : ℝ) {b : ℝ≥0} (hb : b ≠ 0) (x : ℝ) :
-    laplacePDFReal μ₁ b x / laplacePDFReal μ₂ b x ≤
-      rexp (|μ₁ - μ₂| / (b : ℝ)) := by
-  rw [div_le_iff (laplacePDFReal_pos μ₂ hb x)]
-  exact laplacePDFReal_le_exp_mul μ₁ μ₂ hb x
-
-/-- Equivalent formulation: the density at x under μ₁ is at most
+/-- The density at x under μ₁ is at most
     exp(|μ₁-μ₂|/b) times the density at x under μ₂. -/
 theorem laplacePDFReal_le_exp_mul (μ₁ μ₂ : ℝ) {b : ℝ≥0} (hb : b ≠ 0) (x : ℝ) :
     laplacePDFReal μ₁ b x ≤
@@ -166,6 +214,16 @@ theorem laplacePDFReal_le_exp_mul (μ₁ μ₂ : ℝ) {b : ℝ≥0} (hb : b ≠ 
   rw [← add_mul]
   apply mul_le_mul_of_nonneg_right _ (inv_nonneg.mpr (le_of_lt hb_pos))
   linarith
+
+/-- The pointwise density ratio of two Laplace distributions with the same scale
+    but different locations is bounded by exp(|μ₁ - μ₂| / b).
+
+    This is the core calculation behind the Laplace mechanism's ε-DP proof. -/
+theorem laplacePDFReal_ratio_le (μ₁ μ₂ : ℝ) {b : ℝ≥0} (hb : b ≠ 0) (x : ℝ) :
+    laplacePDFReal μ₁ b x / laplacePDFReal μ₂ b x ≤
+      rexp (|μ₁ - μ₂| / (b : ℝ)) := by
+  rw [div_le_iff₀ (laplacePDFReal_pos μ₂ hb x)]
+  exact laplacePDFReal_le_exp_mul μ₁ μ₂ hb x
 
 -- ============================================================================
 -- Translation Law

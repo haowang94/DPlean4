@@ -14,51 +14,53 @@ This document tracks progress against PLAN.md milestones.
 - ✅ `Basic/Adjacency.lean` — ListAddRemove, ListReplace with symmetry proofs
 - ✅ `Basic/Sensitivity.lean` — L1/L2 sensitivity, triangle inequality, scaling
 - ✅ `Probability/Mechanism.lean` — `D → ProbabilityMeasure O`
-- ✅ `Privacy/MeasureClose.lean` — Event inequality, reflexivity, monotonicity (via `gcongr`)
+- ✅ `Privacy/MeasureClose.lean` — Event inequality, reflexivity, monotonicity
 - ✅ `Privacy/Pure.lean` — Pure ε-DP, monotonicity, symmetry
 - ✅ `Privacy/Approximate.lean` — (ε,δ)-DP, conversions, monotonicity
-- ✅ `Examples/AdjacencyTests.lean` — Concrete tests, count query sensitivity
 
-## Milestone 2: Postprocessing, Composition, Laplace Distribution 🚧 IN PROGRESS
-
-### Fully Proved (no sorry)
+## Milestone 2: Postprocessing, Composition, Laplace Distribution ✅ COMPLETE (all sorry-free)
 
 - ✅ `Privacy/Postprocessing.lean`
   - `measureClose_map`: measure-level postprocessing
   - `isApproxDP_postprocess`: (ε,δ)-DP closed under measurable postprocessing
   - `isPureDP_postprocess`: ε-DP closed under measurable postprocessing
 
-- ✅ `Privacy/Composition.lean` (core theorems)
+- ✅ `Privacy/Composition.lean`
+  - `measureClose_trans`: approximate DP transitivity with exp(ε₁)·δ₂+δ₁ bound
   - `pureMeasureClose_trans`: chaining pure DP bounds
   - `isPureDP_group_2`: group privacy for 2 hops
+  - `isPureDP_group`: general group privacy for k-hop chains
   - `isApproxDP_compose_simple`: basic (ε₁+ε₂, δ₁+δ₂) composition
   - `isPureDP_compose_simple`: pure composition
 
-- ✅ `Distribution/Laplace.lean` (structural + ratio bound)
+- ✅ `Distribution/Laplace.lean`
   - `laplacePDFReal`: density `(2b)⁻¹ exp(-|x-μ|/b)`
   - `laplacePDF`: ENNReal version for `withDensity`
   - `laplaceMeasure`: probability measure (Dirac at b=0)
-  - Nonnegativity, positivity, measurability, translation, symmetry
-  - **`laplacePDFReal_le_exp_mul`**: density ratio ≤ exp(|μ₁-μ₂|/b) — KEY DP LEMMA
-  - **`laplacePDFReal_ratio_le`**: ratio form of the above
+  - `integral_laplacePDFReal_eq_one`: normalization integral
+  - `lintegral_laplacePDF_eq_one`: Lebesgue integral version
+  - `instIsProbabilityMeasureLaplace`: probability measure instance
+  - **`laplacePDFReal_le_exp_mul`**: density ratio ≤ exp(|μ₁-μ₂|/b)
+  - `laplacePDFReal_ratio_le`: ratio form of the above
+  - Translation law, symmetry
 
-### Remaining Sorry (3 total)
+## Milestone 3: Continuous Laplace Mechanism ✅ COMPLETE (all sorry-free)
 
-| File | Theorem | Difficulty | Why |
-|------|---------|-----------|-----|
-| `Distribution/Laplace.lean` | `lintegral_laplacePDF_eq_one` | Hard | Splitting integral + exponential integral evaluation |
-| `Privacy/Composition.lean` | `measureClose_trans` | Medium | ENNReal coercion arithmetic for approximate DP |
-| `Privacy/Composition.lean` | `isPureDP_group` | Medium | Induction on adjacency chain length |
+- ✅ `Mechanism/Laplace.lean`
+  - `laplacePDF_le_exp_mul`: ENNReal density ratio bound
+  - `laplaceMech`: mechanism definition `D → ProbabilityMeasure ℝ`
+  - **`laplaceMech_isPureDP`**: THE FLAGSHIP THEOREM — Laplace mechanism satisfies ε-DP
+    - Axiom audit: depends only on `propext`, `Classical.choice`, `Quot.sound`
+  - Handles boundary case: Δ=0 → Dirac degeneration with correct DP bound
 
-### Notes
-
-- The Laplace normalization integral blocks `IsProbabilityMeasure` (which currently depends on it via sorry)
-- The basic composition theorems are proved with the simpler (ε₁+ε₂, δ₁+δ₂) bound
-- `measureClose_trans` gives the tighter exp(ε₁)·δ₂+δ₁ bound but isn't needed for pure DP
-
-## Milestone 3: Continuous Laplace Mechanism ⬜ NOT STARTED
-
-Depends on completing Laplace normalization integral.
+- ✅ `Examples/LaplaceMechTest.lean` — End-to-end tests:
+  1. `laplace_count_1dp`: Count query + Laplace → 1-DP
+  2. `laplace_const_dp`: Constant query → Dirac degeneration
+  3. `laplace_count_approx_dp`: Pure → approximate DP conversion
+  4. `laplace_count_relaxed`: DP monotonicity (1-DP → 2-DP)
+  5. `laplace_compose_2dp`: Composition of two 1-DP mechanisms → 2-DP
+  6. `laplace_postprocess`: Postprocessing preserves DP
+  7. `laplace_group_2hop`: Group privacy for 2-hop adjacency chain
 
 ## Milestone 4: Gaussian Mechanism + Approximate DP ⬜ NOT STARTED
 
@@ -70,14 +72,19 @@ Depends on completing Laplace normalization integral.
 
 | File | Count | Description |
 |------|-------|-------------|
-| `Distribution/Laplace.lean` | 1 | Normalization integral |
-| `Privacy/Composition.lean` | 2 | Approximate transitivity, general group privacy |
 | `Examples/RandomizedResponse.lean` | 3 | Discrete measure construction (deferred to M5) |
-| **All other 13 files** | **0** | **Fully proved** |
+| **All other 17 files** | **0** | **Fully proved** |
+
+Core library (everything except Examples/) is **100% sorry-free**.
 
 ## Build Status
 
-Last build: ✅ SUCCESS — 1132 lines, 16 modules, 13 sorry-free files
+Last build: ✅ SUCCESS — ~1500 lines, 18 modules, 17 sorry-free files
+
+Flagship theorem axiom audit:
+```
+'DPlean4.laplaceMech_isPureDP' depends on axioms: [propext, Classical.choice, Quot.sound]
+```
 
 ## Repository
 
