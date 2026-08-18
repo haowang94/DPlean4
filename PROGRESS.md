@@ -156,14 +156,14 @@ This document tracks progress against PLAN.md milestones.
 
 | File | Count | Description |
 |------|-------|-------------|
-| `Examples/RandomizedResponse.lean` | 3 | Discrete measure construction (deferred to M6) |
+| `Examples/RandomizedResponse.lean` | **0** | **Rewritten using exponential mechanism** |
 | `Privacy/RenyiDivergence.lean` | 1 | Non-negativity |
 | `Privacy/ZCDP.lean` | 5 | Conversion theorem, postprocessing, composition |
 | `Mechanism/Gaussian.lean` | 2 | Rényi divergence closed form for Gaussians |
 | **All other files** | **0** | **Fully proved** |
 
-Milestones 0-3 + 5 + 5.5: **100% sorry-free** (22 files).
-Milestone 4 adds 8 sorrys in 3 files (definitions + structural proofs are complete).
+Milestones 0-3 + 5 + 5.5: **100% sorry-free** (23 files, including RandomizedResponse).
+Total sorrys: **8** (all in Milestone 4: ZCDP.lean ×5, Gaussian.lean ×2, RenyiDivergence.lean ×1).
 
 ## Build Status
 

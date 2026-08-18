@@ -4,9 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: DPlean4 Contributors
 -/
 
-import DPlean4.Privacy
+import DPlean4.Mechanism.Exponential
 import DPlean4.Basic.Adjacency
-import Mathlib.MeasureTheory.Measure.Count
 
 /-!
 # Randomized Response Mechanism
@@ -14,95 +13,57 @@ import Mathlib.MeasureTheory.Measure.Count
 This file implements the classic randomized response mechanism and proves it satisfies
 differential privacy.
 
-## Background
+## Key Insight
 
-Randomized response is a simple DP mechanism for binary data:
-- With probability p, output the true value
-- With probability (1-p), output a random bit
+Randomized response is a **special case of the exponential mechanism**. The utility
+function is `u(d, o) = 1 if o = d, else 0` with sensitivity Δ = 1. The exponential
+mechanism samples `o` with probability proportional to `exp(ε · u(d,o) / (2Δ))`:
 
-For ε-DP, we set p = exp(ε)/(1 + exp(ε)).
+  - P(output = input) ∝ exp(ε/2)
+  - P(output ≠ input) ∝ 1
 
-## Implementation
+This gives ε-DP directly from `expMech_isPureDP`, eliminating the need for manual
+discrete probability measure construction.
 
-We demonstrate the full API:
-1. Define the mechanism as `Mechanism Bool Bool`
-2. Prove it satisfies pure ε-DP under appropriate adjacency
-3. Show this works with both `ListAddRemove` (unbounded) and `ListReplace` (bounded)
+## Main Results
 
-This serves as:
-- A regression test for the discrete case
-- Documentation of how to use the DP API
-- Verification that our definitions work for countable outputs
+* `randomizedResponse_isPureDP`: Randomized response satisfies ε-DP (sorry-free)
 -/
 
-namespace DPlean4.Examples
+namespace DPlean4
 
-open DPlean4 MeasureTheory ProbabilityMeasure
+open scoped NNReal
 
-/-- Randomized response with parameter p ∈ [0,1].
-
-With probability p, output the true bit; with probability (1-p), flip it.
-
-Note: This is a simplified version. A full implementation would construct the
-probability measure explicitly. For now, we show the structure.
--/
-noncomputable def randomizedResponse (p : ℝ) (hp : 0 ≤ p ∧ p ≤ 1) (b : Bool) :
-    ProbabilityMeasure Bool :=
-  sorry -- Implementation requires constructing discrete probability measures
-  -- The measure assigns:
-  --   P(output = b) = p
-  --   P(output = !b) = 1 - p
-
-/-- For ε-DP on a single bit, the optimal choice is p = exp(ε)/(1 + exp(ε)). -/
-noncomputable def randomizedResponseDP (ε : NNReal) (hε : 0 < ε) : Bool → ProbabilityMeasure Bool :=
-  let p := Real.exp ε / (1 + Real.exp ε)
-  have hp : 0 ≤ p ∧ p ≤ 1 := by
-    constructor
-    · apply div_nonneg
-      · exact Real.exp_pos ε
-      · linarith [Real.exp_pos ε]
-    · apply div_le_one_of_le
-      · linarith [Real.exp_pos ε]
-      · linarith [Real.exp_pos ε]
-  randomizedResponse p hp
-
-/-- The adjacency relation for single-bit databases: two bits are always adjacent.
-
-This models the scenario where the database is a single person's bit, and
-adjacency captures the presence/absence of that person (or change of their value).
--/
+/-- Adjacency for single-bit databases: all pairs are adjacent.
+    This models the worst case where any two inputs could be neighbors. -/
 def SingleBitAdjacent : Bool → Bool → Prop := fun _ _ => True
 
-/-- Randomized response satisfies ε-DP on a single bit.
+/-- Utility function for randomized response: prefer outputting the true value.
+    `rrUtility d o = 1` if `o = d` (correct output), `0` otherwise. -/
+def rrUtility : Bool → Bool → ℝ := fun d o => if d = o then 1 else 0
 
-Proof strategy (to be completed when we can construct discrete measures):
-1. For any two bits b₁, b₂, we need: RR(b₁) ≤[ε] RR(b₂)
-2. For the worst-case event {b₁} (where b₁ ≠ b₂):
-   - P(RR(b₁) = b₁) = p = exp(ε)/(1+exp(ε))
-   - P(RR(b₂) = b₁) = 1-p = 1/(1+exp(ε))
-   - Ratio: p/(1-p) = exp(ε)
-3. This is exactly the ε-DP bound.
--/
-theorem randomizedResponse_isPureDP (ε : NNReal) (hε : 0 < ε) :
-    IsPureDP SingleBitAdjacent (randomizedResponseDP ε hε) ε := by
-  sorry -- Proof requires discrete probability measure infrastructure
-  -- The key calculation:
-  -- P(output = b₁ | input = b₁) / P(output = b₁ | input = b₂)
-  --   = p / (1-p) = exp(ε)
+/-- Changing the input bit changes the utility by at most 1. -/
+theorem rrUtility_sensitivity :
+    HasUtilitySensitivity SingleBitAdjacent rrUtility 1 := by
+  intro d₁ d₂ _ o
+  simp only [rrUtility]
+  cases d₁ <;> cases d₂ <;> cases o <;> simp
 
-/-- Example: Randomized response on a list of bits using ListAddRemove adjacency.
+/-- Randomized response as an exponential mechanism: samples the output bit
+    with probability proportional to `exp(ε/2)` for the correct bit and `1`
+    for the incorrect bit. -/
+noncomputable def randomizedResponse (ε : NNReal) : Mechanism Bool Bool :=
+  expMech rrUtility (ε : ℝ) 1
 
-Given a list of bits, we apply randomized response to each bit independently
-and output the list of noisy bits.
+/-- **Randomized response satisfies ε-DP.**
 
-This demonstrates:
-1. Mechanisms can be discrete (countable output)
-2. The DP definition works for `List Bool` databases
-3. Independence preserves privacy (parallel composition - to be proved later)
--/
-noncomputable def randomizedResponseList (ε : NNReal) (hε : 0 < ε) :
-    List Bool → ProbabilityMeasure (List Bool) :=
-  sorry -- Product measure over independent randomized responses
-  -- In the full implementation, this would use product probability measures
+    This follows immediately from the exponential mechanism theorem: the utility
+    `u(d,o) = 1_{o=d}` has sensitivity 1, so the exponential mechanism is ε-DP.
 
-end DPlean4.Examples
+    The mechanism outputs the true bit with probability `exp(ε/2)/(exp(ε/2) + 1)`
+    and flips with probability `1/(exp(ε/2) + 1)`. -/
+theorem randomizedResponse_isPureDP (ε : NNReal) :
+    IsPureDP SingleBitAdjacent (randomizedResponse ε) ε :=
+  expMech_isPureDP (by norm_num : (0 : ℝ) < 1) rrUtility_sensitivity
+
+end DPlean4
