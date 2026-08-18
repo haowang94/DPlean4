@@ -6,6 +6,7 @@ Authors: DPlean4 Contributors
 
 import DPlean4.Privacy.Approximate
 import Mathlib.MeasureTheory.Measure.Prod
+import Mathlib.MeasureTheory.Measure.FiniteMeasureProd
 
 /-!
 # Composition Theorems for Differential Privacy
@@ -14,10 +15,10 @@ This file proves basic composition theorems for differential privacy.
 
 ## Main Results
 
-* `measureClose_prod`: Product composition at the measure level
-* `isApproxDP_compose`: If M₁ is (ε₁,δ₁)-DP and M₂ is (ε₂,δ₂)-DP (independently),
-  then the product mechanism is (ε₁+ε₂, δ₁+δ₂)-DP
-* `isPureDP_compose`: Special case for pure DP: ε₁-DP ⊗ ε₂-DP → (ε₁+ε₂)-DP
+* `measureClose_trans`: Transitivity with tight δ bound (exp(ε₁)·δ₂+δ₁)
+* `pureMeasureClose_prod`: Product composition for pure DP measures
+* `isPureDP_prod`: Independent composition: ε₁-DP ⊗ ε₂-DP → (ε₁+ε₂)-DP
+* `isPureDP_group`: Group privacy for k-hop adjacency chains
 
 ## Design Notes
 
@@ -101,30 +102,58 @@ theorem pureMeasureClose_trans {ε₁ ε₂ : NNReal}
 
 end MeasureLevel
 
-/-- Basic sequential composition for approximate DP.
-    If M₁ is (ε₁,δ₁)-DP and M₂ is (ε₂,δ₂)-DP on the same output space, and we
-    run them independently on the same database, privacy degrades additively:
-    ε_total = ε₁ + ε₂, δ_total = δ₁ + δ₂.
+section ProductComposition
 
-    Note: This is the basic composition theorem. The δ bound here (δ₁+δ₂) is
-    simpler but slightly looser than the optimal exp(ε₁)·δ₂ + δ₁ from
-    measureClose_trans. For pure DP (δ=0) both give the same result. -/
-theorem isApproxDP_compose_simple {adj : D → D → Prop}
-    {M₁ M₂ : Mechanism D O₁} {ε₁ ε₂ δ₁ δ₂ : NNReal}
-    (h₁ : IsApproxDP adj M₁ ε₁ δ₁) (_h₂ : IsApproxDP adj M₂ ε₂ δ₂) :
-    IsApproxDP adj M₁ (ε₁ + ε₂) (δ₁ + δ₂) := by
+variable {O₁ O₂ : Type*} [MeasurableSpace O₁] [MeasurableSpace O₂]
+
+/-- Product composition for pure DP at the measure level:
+    if μ₁ ≤[ε₁] ν₁ and μ₂ ≤[ε₂] ν₂, then μ₁⊗μ₂ ≤[ε₁+ε₂] ν₁⊗ν₂.
+
+    This is the measure-level fact underlying independent composition for pure DP. -/
+theorem pureMeasureClose_prod {ε₁ ε₂ : NNReal}
+    {μ₁ ν₁ : ProbabilityMeasure O₁} {μ₂ ν₂ : ProbabilityMeasure O₂}
+    (h₁ : PureMeasureClose ε₁ μ₁ ν₁) (h₂ : PureMeasureClose ε₂ μ₂ ν₂) :
+    PureMeasureClose (ε₁ + ε₂) (μ₁.prod μ₂) (ν₁.prod ν₂) := by
+  intro s hs
+  simp only [PureMeasureClose, MeasureClose, ENNReal.coe_zero, add_zero] at *
+  rw [ProbabilityMeasure.toMeasure_prod, ProbabilityMeasure.toMeasure_prod]
+  set c₁ := ENNReal.ofReal (Real.exp ↑ε₁)
+  set c₂ := ENNReal.ofReal (Real.exp ↑ε₂)
+  have hle₁ : μ₁.toMeasure ≤ c₁ • ν₁.toMeasure := by
+    rw [Measure.le_iff]
+    intro t ht
+    rw [Measure.smul_apply]
+    exact h₁ t ht
+  have hle₂ : μ₂.toMeasure ≤ c₂ • ν₂.toMeasure := by
+    rw [Measure.le_iff]
+    intro t ht
+    rw [Measure.smul_apply]
+    exact h₂ t ht
+  calc μ₁.toMeasure.prod μ₂.toMeasure s
+      ≤ (c₁ • ν₁.toMeasure).prod (c₂ • ν₂.toMeasure) s :=
+        Measure.prod_mono hle₁ hle₂ s
+    _ = (c₁ • (ν₁.toMeasure.prod (c₂ • ν₂.toMeasure))) s := by
+        rw [Measure.prod_smul_left]
+    _ = (c₁ • (c₂ • (ν₁.toMeasure.prod ν₂.toMeasure))) s := by
+        rw [Measure.prod_smul_right]
+    _ = ((c₁ * c₂) • (ν₁.toMeasure.prod ν₂.toMeasure)) s := by
+        rw [smul_smul]
+    _ = ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * (ν₁.toMeasure.prod ν₂.toMeasure) s := by
+        rw [Measure.smul_apply]
+        congr 1
+        rw [← ENNReal.ofReal_mul (Real.exp_nonneg _), ← Real.exp_add, NNReal.coe_add]
+
+end ProductComposition
+
+/-- Independent composition for pure DP via product mechanism:
+    If M₁ is ε₁-DP and M₂ is ε₂-DP, their product mechanism
+    `fun d => (M₁ d, M₂ d)` is (ε₁+ε₂)-DP. -/
+theorem isPureDP_prod {adj : D → D → Prop}
+    {M₁ : Mechanism D O₁} {M₂ : Mechanism D O₂} {ε₁ ε₂ : NNReal}
+    (h₁ : IsPureDP adj M₁ ε₁) (h₂ : IsPureDP adj M₂ ε₂) :
+    IsPureDP adj (M₁.prod M₂) (ε₁ + ε₂) := by
   intro d₁ d₂ hadj
-  exact measureClose_epsilon_mono
-    (measureClose_delta_mono (h₁ d₁ d₂ hadj) le_self_add)
-    le_self_add
-
-/-- Sequential composition for pure DP:
-    If M₁ is ε₁-DP and M₂ is ε₂-DP, then M₁ is (ε₁+ε₂)-DP. -/
-theorem isPureDP_compose_simple {adj : D → D → Prop}
-    {M₁ M₂ : Mechanism D O₁} {ε₁ ε₂ : NNReal}
-    (h₁ : IsPureDP adj M₁ ε₁) (_h₂ : IsPureDP adj M₂ ε₂) :
-    IsPureDP adj M₁ (ε₁ + ε₂) := by
-  exact isPureDP_mono h₁ le_self_add
+  exact pureMeasureClose_prod (h₁ d₁ d₂ hadj) (h₂ d₁ d₂ hadj)
 
 /-- Group privacy for 2 hops: chaining two adjacencies doubles the ε bound. -/
 theorem isPureDP_group_2 {adj : D → D → Prop} {M : Mechanism D O₁} {ε : NNReal}

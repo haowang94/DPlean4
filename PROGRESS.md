@@ -13,7 +13,7 @@ This document tracks progress against PLAN.md milestones.
 
 - ✅ `Basic/Adjacency.lean` — ListAddRemove, ListReplace with symmetry proofs
 - ✅ `Basic/Sensitivity.lean` — L1/L2 sensitivity, triangle inequality, scaling
-- ✅ `Probability/Mechanism.lean` — `D → ProbabilityMeasure O`
+- ✅ `Probability/Mechanism.lean` — `D → ProbabilityMeasure O`, product combinator
 - ✅ `Privacy/MeasureClose.lean` — Event inequality, reflexivity, monotonicity
 - ✅ `Privacy/Pure.lean` — Pure ε-DP, monotonicity, symmetry
 - ✅ `Privacy/Approximate.lean` — (ε,δ)-DP, conversions, monotonicity
@@ -28,10 +28,10 @@ This document tracks progress against PLAN.md milestones.
 - ✅ `Privacy/Composition.lean`
   - `measureClose_trans`: approximate DP transitivity with exp(ε₁)·δ₂+δ₁ bound
   - `pureMeasureClose_trans`: chaining pure DP bounds
+  - **`pureMeasureClose_prod`**: product composition for pure DP measures
+  - **`isPureDP_prod`**: genuine independent composition via product mechanism
   - `isPureDP_group_2`: group privacy for 2 hops
   - `isPureDP_group`: general group privacy for k-hop chains
-  - `isApproxDP_compose_simple`: basic (ε₁+ε₂, δ₁+δ₂) composition
-  - `isPureDP_compose_simple`: pure composition
 
 - ✅ `Distribution/Laplace.lean`
   - `laplacePDFReal`: density `(2b)⁻¹ exp(-|x-μ|/b)`
@@ -58,11 +58,15 @@ This document tracks progress against PLAN.md milestones.
   2. `laplace_const_dp`: Constant query → Dirac degeneration
   3. `laplace_count_approx_dp`: Pure → approximate DP conversion
   4. `laplace_count_relaxed`: DP monotonicity (1-DP → 2-DP)
-  5. `laplace_compose_2dp`: Composition of two 1-DP mechanisms → 2-DP
+  5. `laplace_compose_product`: **Genuine product composition** (ε₁-DP ⊗ ε₂-DP → (ε₁+ε₂)-DP)
   6. `laplace_postprocess`: Postprocessing preserves DP
   7. `laplace_group_2hop`: Group privacy for 2-hop adjacency chain
 
+- ✅ `Examples/AdjacencyTests.lean` — All examples compile (ListAddRemove + ListReplace)
+
 ## Milestone 4: Gaussian Mechanism + Approximate DP ⬜ NOT STARTED
+
+Plan: zCDP → (ε,δ)-DP conversion path (Rényi divergence → Gaussian zCDP → conversion)
 
 ## Milestone 5: Algorithm Library + Ergonomics ⬜ NOT STARTED
 
@@ -79,11 +83,13 @@ Core library (everything except Examples/) is **100% sorry-free**.
 
 ## Build Status
 
-Last build: ✅ SUCCESS — ~1500 lines, 18 modules, 17 sorry-free files
+Last build: ✅ SUCCESS — ~1550 lines, 18 modules, 17 sorry-free files
 
-Flagship theorem axiom audit:
+Axiom audits:
 ```
 'DPlean4.laplaceMech_isPureDP' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DPlean4.isPureDP_prod' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DPlean4.pureMeasureClose_prod' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
 
 ## Repository
@@ -92,4 +98,4 @@ Flagship theorem axiom audit:
 
 ---
 
-Last Updated: 2026-08-17
+Last Updated: 2026-08-18

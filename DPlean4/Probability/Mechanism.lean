@@ -5,6 +5,7 @@ Authors: DPlean4 Contributors
 -/
 
 import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
+import Mathlib.MeasureTheory.Measure.FiniteMeasureProd
 
 /-!
 # Mechanisms for Differential Privacy
@@ -61,5 +62,29 @@ def constantMechanism (μ : ProbabilityMeasure O) : Mechanism D O :=
 
 -- Note: A deterministic mechanism (Dirac measure) will be added when we have
 -- proper discrete probability measure utilities
+
+end DPlean4
+
+-- ============================================================================
+-- Product mechanism (independent composition)
+-- ============================================================================
+
+namespace DPlean4
+
+open MeasureTheory
+
+variable {D : Type*} {O₁ O₂ : Type*} [MeasurableSpace O₁] [MeasurableSpace O₂]
+
+/-- The product of two mechanisms runs both independently on the same database
+    and returns the pair of outputs. This is the fundamental combinator for
+    independent (non-adaptive) composition. -/
+noncomputable def Mechanism.prod (M₁ : Mechanism D O₁) (M₂ : Mechanism D O₂) :
+    Mechanism D (O₁ × O₂) :=
+  fun d => (M₁ d).prod (M₂ d)
+
+@[simp]
+theorem Mechanism.prod_toMeasure (M₁ : Mechanism D O₁) (M₂ : Mechanism D O₂) (d : D) :
+    ((M₁.prod M₂) d).toMeasure = (M₁ d).toMeasure.prod (M₂ d).toMeasure :=
+  ProbabilityMeasure.toMeasure_prod _ _
 
 end DPlean4

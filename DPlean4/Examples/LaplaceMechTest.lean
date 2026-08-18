@@ -96,12 +96,15 @@ theorem laplace_count_relaxed :
 -- Test 5: Composition
 -- ============================================================================
 
-/-- Two independent 1-DP mechanisms compose to 2-DP. -/
-theorem laplace_compose_2dp :
+/-- Two independent 1-DP Laplace mechanisms compose to a 2-DP product mechanism.
+    This is genuine composition: the result is about the joint mechanism `(M₁, M₂)`,
+    not a monotonicity relaxation of a single mechanism. -/
+theorem laplace_compose_product :
     IsPureDP ListAddRemove
-      (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0))
+      ((laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)).prod
+       (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)))
       ((1 : ℝ≥0) + (1 : ℝ≥0)) :=
-  isPureDP_compose_simple
+  isPureDP_prod
     (laplace_count_1dp (α := α))
     (laplace_count_1dp (α := α))
 

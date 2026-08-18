@@ -24,28 +24,23 @@ open DPlean4
 
 section AdjacencyExamples
 
-/-- Example: [1,2,3] and [2,3] are adjacent via add/remove -/
-example : ListAddRemove [1,2,3] [2,3] := by
-  left
-  use 1, [2,3]
-  constructor <;> rfl
+/-- Example: [1,2,3] and [2,3] are adjacent via add/remove (remove head) -/
+example : ListAddRemove [1,2,3] [2,3] := .inl ⟨1, [2,3], rfl, rfl⟩
 
-/-- Example: [1,2,3] and [1,2,3,4] are adjacent via add/remove -/
-example : ListAddRemove [1,2,3] [1,2,3,4] := by
-  right
-  use 4, [1,2,3]
-  constructor <;> rfl
+/-- Example: [1,2,3] and [4,1,2,3] are adjacent via add/remove (add at head) -/
+example : ListAddRemove [1,2,3] [4,1,2,3] := .inr ⟨4, [1,2,3], rfl, rfl⟩
 
-/-- Example: [1,2,3] and [1,5,3] are adjacent via replace -/
+/-- Example: [1,2,3] and [1,5,3] are adjacent via replace (differ at index 1) -/
 example : ListReplace [1,2,3] [1,5,3] := by
-  use [1], [3], 2, 5
-  constructor <;> rfl
+  refine ⟨by simp, 1, by simp, by decide, ?_⟩
+  intro j hj hj_lt
+  simp at hj_lt
+  have : j = 0 ∨ j = 2 := by omega
+  rcases this with rfl | rfl <;> decide
 
 /-- Example: Lists of different lengths are NOT adjacent via replace -/
 example : ¬ListReplace [1,2,3] [1,2,3,4] := by
-  intro ⟨prefix, suffix, a, b, h₁, h₂⟩
-  -- If they were replace-adjacent, they'd have the same length
-  have hlen := listReplace_length_eq [1,2,3] [1,2,3,4] ⟨prefix, suffix, a, b, h₁, h₂⟩
+  intro ⟨hlen, _⟩
   simp at hlen
 
 end AdjacencyExamples
@@ -60,20 +55,11 @@ def countQuery : List α → ℝ := fun l => (l.length : ℝ)
 /-- The counting query has L1 sensitivity 1 under ListAddRemove adjacency -/
 theorem countQuery_sensitivity : HasL1Sensitivity ListAddRemove (countQuery : List α → ℝ) 1 := by
   intro l₁ l₂ hadj
-  -- Get length difference from adjacency
   have hlen := listAddRemove_length_diff l₁ l₂ hadj
   simp [countQuery]
-  -- Convert to real and use absolute value
-  cases hlen with
-  | inl h =>
-    have : (l₁.length : ℝ) - (l₂.length : ℝ) = 1 := by
-      simp; exact_mod_cast h
-    simp [this, abs_of_nonneg]
-    norm_num
-  | inr h =>
-    have : (l₁.length : ℝ) - (l₂.length : ℝ) = -1 := by
-      push_cast; omega
-    simp [this]
+  obtain ⟨a, l, rfl, rfl⟩ | ⟨a, l, rfl, rfl⟩ := hadj
+  · simp [List.length_cons, Nat.cast_add, Nat.cast_one]
+  · simp [List.length_cons, Nat.cast_add, Nat.cast_one]
 
 /-- A constant query has zero sensitivity (regardless of adjacency) -/
 example (c : ℝ) : HasL1Sensitivity ListAddRemove (fun (_ : List α) => c) 0 :=
