@@ -40,7 +40,7 @@ open scoped NNReal ENNReal
 variable {α : Type*}
 
 private theorem countQuery_sens'' :
-    HasL1Sensitivity ListAddRemove (fun (l : List α) => (l.length : ℝ)) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (fun (l : List α) => (l.length : ℝ)) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj
   simp only [NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj <;> rw [h.1, h.2] <;>
@@ -50,7 +50,7 @@ private abbrev countLaplace : Mechanism (List α) ℝ :=
   laplaceMech (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)
 
 private theorem countLaplace_pureDP :
-    IsPureDP ListAddRemove (countLaplace (α := α)) (1 : ℝ≥0) :=
+    IsPureDP ListHeadAddRemove (countLaplace (α := α)) (1 : ℝ≥0) :=
   laplaceMech_isPureDP one_ne_zero countQuery_sens''
 
 -- ============================================================================
@@ -64,7 +64,7 @@ private theorem countLaplace_pureDP :
     Each mechanism is 1-DP (pure), so the triple product is 3-DP.
     Demonstrates that pure DP composition scales linearly. -/
 theorem three_laplace_pipeline :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((countLaplace (α := α)).prod countLaplace |>.prod countLaplace)
       ((1 : ℝ≥0) + (1 : ℝ≥0) + (1 : ℝ≥0)) :=
   isPureDP_prod (isPureDP_prod countLaplace_pureDP countLaplace_pureDP) countLaplace_pureDP
@@ -83,7 +83,7 @@ theorem three_laplace_pipeline :
     This pattern appears in "report noisy max" algorithms
     (Dwork & Roth 2014, Algorithm 2). -/
 theorem compose_then_postprocess :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (fun (d : List α) =>
         (countLaplace.prod countLaplace d).map
           (Measurable.max measurable_fst measurable_snd).aemeasurable)
@@ -105,13 +105,13 @@ theorem compose_then_postprocess :
     The δ bound exp(ε₂)·δ₁+δ₂ tracks how privacy degradation accumulates
     through the Fubini integration steps. -/
 theorem approxDP_compose_explicit_delta (δ : NNReal) :
-    IsApproxDP ListAddRemove
+    IsApproxDP ListHeadAddRemove
       ((countLaplace (α := α)).prod countLaplace)
       ((1 : ℝ≥0) + (1 : ℝ≥0))
       (⟨Real.exp ↑(1 : ℝ≥0), Real.exp_nonneg _⟩ * δ + δ) :=
   isApproxDP_prod
-    (isPureDP_to_isApproxDP δ countLaplace_pureDP)
-    (isPureDP_to_isApproxDP δ countLaplace_pureDP)
+    (isApproxDP_of_isPureDP δ countLaplace_pureDP)
+    (isApproxDP_of_isPureDP δ countLaplace_pureDP)
 
 -- ============================================================================
 -- Example 4: Composition preserves group privacy
@@ -124,7 +124,7 @@ theorem approxDP_compose_explicit_delta (δ : NNReal) :
 
     Combines composition (ε₁+ε₂) and group privacy (k·ε). -/
 theorem compose_group_privacy {l₁ l₂ l₃ : List α}
-    (h₁₂ : ListAddRemove l₁ l₂) (h₂₃ : ListAddRemove l₂ l₃) :
+    (h₁₂ : ListHeadAddRemove l₁ l₂) (h₂₃ : ListHeadAddRemove l₂ l₃) :
     PureMeasureClose (((1 : ℝ≥0) + (1 : ℝ≥0)) + ((1 : ℝ≥0) + (1 : ℝ≥0)))
       (countLaplace.prod countLaplace l₁)
       (countLaplace.prod countLaplace l₃) :=

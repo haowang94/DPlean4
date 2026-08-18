@@ -5,8 +5,6 @@ Authors: DPlean4 Contributors
 -/
 
 import Mathlib.Analysis.Normed.Group.Basic
-import Mathlib.Analysis.Real.Sqrt
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Tactic
 
 /-!
@@ -25,7 +23,7 @@ Sensitivity is defined with respect to a generic adjacency relation `adj : D →
 This allows the same query to have different sensitivities under different adjacency notions.
 
 For example, a counting query has:
-- L1 sensitivity 1 under `ListAddRemove` adjacency
+- L1 sensitivity 1 under `ListHeadAddRemove` adjacency
 - L1 sensitivity 2 under `ListReplace` adjacency (replace could remove + add)
 -/
 
@@ -52,6 +50,12 @@ def HasL2Sensitivity {E : Type*} [NormedAddCommGroup E] (adj : D → D → Prop)
 theorem hasL1Sensitivity_iff_hasL2Sensitivity (adj : D → D → Prop) (q : D → ℝ) (Δ : ℝ) :
     HasL1Sensitivity adj q Δ ↔ HasL2Sensitivity adj q Δ := by
   simp only [HasL1Sensitivity, HasL2Sensitivity, Real.norm_eq_abs]
+
+/-- Convert L1 sensitivity to L2 sensitivity for real-valued queries.
+    Useful when feeding a scalar query into the Gaussian mechanism (which requires L2). -/
+theorem HasL1Sensitivity.toL2 {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ}
+    (h : HasL1Sensitivity adj q Δ) : HasL2Sensitivity adj q Δ :=
+  (hasL1Sensitivity_iff_hasL2Sensitivity adj q Δ).mp h
 
 /-- Sensitivity is monotone: if a query has sensitivity Δ₁ and Δ₁ ≤ Δ₂, then it
     has sensitivity Δ₂. -/
@@ -145,6 +149,51 @@ theorem hasL1Sensitivity_min (adj : D → D → Prop) (q₁ q₂ : D → ℝ) (�
     This is the sensitivity notion used by the Exponential mechanism. -/
 def HasUtilitySensitivity {O : Type*} (adj : D → D → Prop) (u : D → O → ℝ) (Δ : ℝ) : Prop :=
   ∀ d₁ d₂, adj d₁ d₂ → ∀ o, |u d₁ o - u d₂ o| ≤ Δ
+
+-- ============================================================================
+-- Vector Sensitivity
+-- ============================================================================
+
+/-- A vector-valued query has L1 vector sensitivity at most `Δ` if the sum of
+    absolute coordinate differences is bounded. This is the sensitivity notion
+    for the vector Laplace mechanism. -/
+def HasL1VectorSensitivity {ι : Type*} [Fintype ι] (adj : D → D → Prop)
+    (q : D → ι → ℝ) (Δ : ℝ) : Prop :=
+  ∀ d₁ d₂, adj d₁ d₂ → ∑ i, |q d₁ i - q d₂ i| ≤ Δ
+
+/-- A vector-valued query has L2 vector sensitivity at most `Δ` if the sum of
+    squared coordinate differences is bounded by `Δ²`. This is the sensitivity
+    notion for the vector Gaussian mechanism.
+    Equivalent to `HasL2Sensitivity` on `EuclideanSpace ℝ ι`. -/
+def HasL2VectorSensitivity {ι : Type*} [Fintype ι] (adj : D → D → Prop)
+    (q : D → ι → ℝ) (Δ : ℝ) : Prop :=
+  ∀ d₁ d₂, adj d₁ d₂ → ∑ i, (q d₁ i - q d₂ i) ^ 2 ≤ Δ ^ 2
+
+theorem HasL1VectorSensitivity.mono {ι : Type*} [Fintype ι] {adj : D → D → Prop}
+    {q : D → ι → ℝ} {Δ₁ Δ₂ : ℝ} (h : HasL1VectorSensitivity adj q Δ₁) (hle : Δ₁ ≤ Δ₂) :
+    HasL1VectorSensitivity adj q Δ₂ :=
+  fun d₁ d₂ hadj => le_trans (h d₁ d₂ hadj) hle
+
+theorem HasL2VectorSensitivity.mono {ι : Type*} [Fintype ι] {adj : D → D → Prop}
+    {q : D → ι → ℝ} {Δ₁ Δ₂ : ℝ} (h : HasL2VectorSensitivity adj q Δ₁)
+    (_hΔ₁ : 0 ≤ Δ₁) (hle : Δ₁ ≤ Δ₂) :
+    HasL2VectorSensitivity adj q Δ₂ :=
+  fun d₁ d₂ hadj => le_trans (h d₁ d₂ hadj) (pow_le_pow_left₀ _hΔ₁ hle 2)
+
+/-- L1 vector sensitivity implies L2 vector sensitivity:
+    ‖x‖₂² = ∑ᵢ xᵢ² ≤ (∑ᵢ |xᵢ|)² ≤ Δ². -/
+theorem HasL1VectorSensitivity.toL2 {ι : Type*} [Fintype ι] {adj : D → D → Prop}
+    {q : D → ι → ℝ} {Δ : ℝ} (h : HasL1VectorSensitivity adj q Δ) (hΔ : 0 ≤ Δ) :
+    HasL2VectorSensitivity adj q Δ := by
+  intro d₁ d₂ hadj
+  have h1 := h d₁ d₂ hadj
+  calc ∑ i : ι, (q d₁ i - q d₂ i) ^ 2
+      = ∑ i : ι, |q d₁ i - q d₂ i| ^ 2 := by
+        congr 1; ext i; rw [sq_abs]
+    _ ≤ (∑ i : ι, |q d₁ i - q d₂ i|) ^ 2 :=
+        Finset.sum_sq_le_sq_sum_of_nonneg (fun i _ => abs_nonneg _)
+    _ ≤ Δ ^ 2 :=
+        pow_le_pow_left₀ (Finset.sum_nonneg (fun i _ => abs_nonneg _)) h1 2
 
 end Sensitivity
 

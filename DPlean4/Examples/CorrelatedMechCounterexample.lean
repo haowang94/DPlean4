@@ -39,6 +39,17 @@ This is related to the noise reuse counterexample (`NoiseReuseCounterexample.lea
 but approaches the problem from a composition angle: each mechanism is individually
 DP, but their correlation breaks the composition guarantee.
 
+## Proof Status
+
+The algebraic core (shared noise cancels to reveal `2d`) is fully proved. The
+individual mechanisms are formally proved ε-DP, and correct (independent)
+composition is demonstrated via `isPureDP_prod`. The shared-noise non-privacy
+is demonstrated algebraically rather than as a formal `¬ IsPureDP` theorem,
+since modeling shared randomness requires a joint distribution construction
+beyond the library's current `Mechanism.prod` (independent copies) combinator.
+See `NoiseReuseCounterexample.lean` for a complete measure-theoretic refutation
+of a related noise-reuse construction.
+
 ## References
 
 * Dwork & Roth (2014), §3.5.2: "Composition: some subtleties"

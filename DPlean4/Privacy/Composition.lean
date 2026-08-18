@@ -7,6 +7,7 @@ Authors: DPlean4 Contributors
 import DPlean4.Privacy.Approximate
 import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.MeasureTheory.Measure.FiniteMeasureProd
+import Mathlib.MeasureTheory.Measure.FiniteMeasurePi
 
 /-!
 # Composition Theorems for Differential Privacy
@@ -28,7 +29,7 @@ We prove **independent** (non-adaptive) composition first. The two mechanisms
 operate on the same input database but produce independent outputs.
 
 Adaptive composition (where the second mechanism depends on the first's output)
-requires Markov kernels and will be addressed in a separate file (KernelBridge.lean).
+requires a separate Markov-kernel interface and is not provided here.
 
 ### Proof Strategy for Product Composition
 
@@ -366,5 +367,84 @@ theorem isApproxDP_parallel {adj : D → D → Prop}
       (measureClose_prod_right (h₁ d₁ d₂ hadj)) (le_max_left δ₁ δ₂)) (le_max_left ε₁ ε₂)
 
 end ParallelComposition
+
+-- ============================================================================
+-- Pi (Finite Product) Composition
+-- ============================================================================
+
+private theorem pureMeasureClose_pi_fin {n : ℕ}
+    {O' : Fin n → Type*} [∀ i, MeasurableSpace (O' i)]
+    {ε : Fin n → NNReal}
+    {μ ν : ∀ i, ProbabilityMeasure (O' i)}
+    (h : ∀ i, PureMeasureClose (ε i) (μ i) (ν i)) :
+    PureMeasureClose (∑ i : Fin n, ε i)
+      (ProbabilityMeasure.pi μ) (ProbabilityMeasure.pi ν) := by
+  induction n with
+  | zero =>
+    simp only [Finset.univ_eq_empty, Finset.sum_empty]
+    intro s hs
+    simp only [ENNReal.coe_zero, add_zero, NNReal.coe_zero, Real.exp_zero,
+               ENNReal.ofReal_one, one_mul, ProbabilityMeasure.toMeasure_pi]
+    rw [Measure.pi_of_empty, Measure.pi_of_empty]
+  | succ n ih =>
+    rw [Fin.sum_univ_succAbove (fun i => ε i) 0]
+    have h_prod := pureMeasureClose_prod (h 0) (ih (fun j => h (Fin.succAbove 0 j)))
+    intro s hs
+    simp only [PureMeasureClose, MeasureClose, ENNReal.coe_zero, add_zero] at h_prod ⊢
+    set e := MeasurableEquiv.piFinSuccAbove O' 0
+    have h_meas : MeasurableSet (e '' s) :=
+      e.measurableEmbedding.measurableSet_image.mpr hs
+    have h_map : ∀ (P : ∀ i, ProbabilityMeasure (O' i)),
+        (ProbabilityMeasure.pi P).toMeasure.map e =
+        ((P 0).prod (ProbabilityMeasure.pi (fun j => P (Fin.succAbove 0 j)))).toMeasure := by
+      intro P
+      simp only [ProbabilityMeasure.toMeasure_pi, ProbabilityMeasure.toMeasure_prod]
+      exact (measurePreserving_piFinSuccAbove (fun i => (P i).toMeasure) 0).map_eq
+    have key : ∀ (P : ∀ i, ProbabilityMeasure (O' i)),
+        (ProbabilityMeasure.pi P).toMeasure s =
+        ((P 0).prod (ProbabilityMeasure.pi (fun j => P (Fin.succAbove 0 j)))).toMeasure
+          (e '' s) := by
+      intro P
+      rw [← h_map P, Measure.map_apply e.measurable h_meas, e.injective.preimage_image]
+    rw [key μ, key ν]
+    exact h_prod (e '' s) h_meas
+
+section PiComposition
+
+open Finset
+
+variable {ι : Type*} [Fintype ι] {O : ι → Type*} [∀ i, MeasurableSpace (O i)]
+
+/-- Product composition for pure DP over finite products:
+    if each μ i ≤[ε i] ν i, then Measure.pi μ ≤[∑ i, ε i] Measure.pi ν.
+
+    This generalizes `pureMeasureClose_prod` from binary to n-ary products. -/
+theorem pureMeasureClose_pi
+    {ε : ι → NNReal}
+    {μ ν : ∀ i, ProbabilityMeasure (O i)}
+    (h : ∀ i, PureMeasureClose (ε i) (μ i) (ν i)) :
+    PureMeasureClose (∑ i, ε i)
+      (ProbabilityMeasure.pi μ) (ProbabilityMeasure.pi ν) := by
+  set f := (Fintype.equivFin ι).symm
+  set e := MeasurableEquiv.piCongrLeft O f
+  have h_fin := pureMeasureClose_pi_fin (fun j => h (f j))
+  intro s hs
+  simp only [PureMeasureClose, MeasureClose, ENNReal.coe_zero, add_zero] at h_fin ⊢
+  have h_preimage_meas : MeasurableSet (e ⁻¹' s) := e.measurable hs
+  have h_μ_eq : (ProbabilityMeasure.pi μ).toMeasure s =
+      (ProbabilityMeasure.pi (fun j => μ (f j))).toMeasure (e ⁻¹' s) := by
+    simp only [ProbabilityMeasure.toMeasure_pi]
+    rw [← (measurePreserving_piCongrLeft (fun i => (μ i).toMeasure) f).map_eq,
+        Measure.map_apply e.measurable hs]
+  have h_ν_eq : (ProbabilityMeasure.pi ν).toMeasure s =
+      (ProbabilityMeasure.pi (fun j => ν (f j))).toMeasure (e ⁻¹' s) := by
+    simp only [ProbabilityMeasure.toMeasure_pi]
+    rw [← (measurePreserving_piCongrLeft (fun i => (ν i).toMeasure) f).map_eq,
+        Measure.map_apply e.measurable hs]
+  rw [h_μ_eq, h_ν_eq]
+  have h_bound := h_fin (e ⁻¹' s) h_preimage_meas
+  rwa [show (∑ j : Fin _, ε (f j) : NNReal) = ∑ i, ε i from f.sum_comp ε] at h_bound
+
+end PiComposition
 
 end DPlean4

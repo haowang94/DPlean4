@@ -37,7 +37,7 @@ variable {α : Type*}
     A histogram counts elements matching each predicate, so adding/removing
     one element changes each bin by at most 1. -/
 private theorem histogramBin_sens (ps : Fin n → α → Bool) (i : Fin n) :
-    HasL1Sensitivity ListAddRemove
+    HasL1Sensitivity ListHeadAddRemove
       (fun (l : List α) => (l.countP (ps i) : ℝ)) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj
   simp only [NNReal.coe_one]
@@ -63,7 +63,7 @@ private theorem histogramBin_sens (ps : Fin n → α → Bool) (i : Fin n) :
     Application: survey analysis, demographic selection, feature selection. -/
 theorem histogram_bin_select (ps : Fin n → α → Bool) [Nonempty (Fin n)]
     (ε : NNReal) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (reportNoisyMax (fun i (l : List α) => (l.countP (ps i) : ℝ)) ε 1)
       ε :=
   reportNoisyMax_isPureDP (by norm_num : (0 : ℝ) < 1) (histogramBin_sens ps)
@@ -80,7 +80,7 @@ private def threeQueries : Fin 3 → List α → ℝ :=
     fun l => (l.length : ℝ) - 1]
 
 private theorem threeQueries_sens (i : Fin 3) :
-    HasL1Sensitivity ListAddRemove (threeQueries (α := α) i) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (threeQueries (α := α) i) (↑(1 : ℝ≥0)) := by
   fin_cases i <;> {
     intro l₁ l₂ hadj
     simp only [threeQueries, NNReal.coe_one, Matrix.cons_val_zero, Matrix.cons_val_one,
@@ -94,7 +94,7 @@ private theorem threeQueries_sens (i : Fin 3) :
 
     Demonstrates Report Noisy Max with a small, concrete query set. -/
 theorem best_query_select_3 (ε : NNReal) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (reportNoisyMax (threeQueries (α := α)) ε 1)
       ε :=
   reportNoisyMax_isPureDP (by norm_num : (0 : ℝ) < 1) threeQueries_sens
@@ -106,7 +106,7 @@ theorem best_query_select_3 (ε : NNReal) :
 /-- ε-DP Report Noisy Max implies ε'-DP for ε' ≥ ε. -/
 theorem reportNoisyMax_monotone (ps : Fin n → α → Bool) [Nonempty (Fin n)]
     {ε₁ ε₂ : NNReal} (hle : ε₁ ≤ ε₂) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (reportNoisyMax (fun i (l : List α) => (l.countP (ps i) : ℝ)) ε₁ 1)
       ε₂ :=
   isPureDP_mono (histogram_bin_select ps ε₁) hle

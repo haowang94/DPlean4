@@ -27,10 +27,8 @@ Use Gaussian noise and account via zCDP composition. For k queries with
 Gaussian noise variance v, each step is ρ-zCDP with ρ = 1/(2v).
 After k steps: k·ρ-zCDP. Convert to (ε,δ)-DP with tight bounds.
 
-For the same (ε,δ)-DP guarantee, zCDP requires variance proportional to
-√k (via the zCDP → approx-DP conversion), while basic composition requires
-variance proportional to k. This √k improvement is why zCDP accounting is
-preferred in practice.
+The zCDP conversion is `kρ + 2√(kρ log(1/δ))`; both terms must be retained
+when selecting the Gaussian variance.
 
 ## References
 
@@ -54,7 +52,7 @@ variable {α : Type*}
 
 /-- Two counting queries with split budget: each gets ε/2, total is ε. -/
 theorem two_queries_split_budget {ε : ℝ≥0} (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((laplaceMech (D := List α) (fun l => (l.length : ℝ)) 1 (ε / 2)).prod
        (laplaceMech (D := List α) (fun l => (l.length : ℝ)) 1 (ε / 2)))
       (ε / 2 + ε / 2) := by
@@ -75,10 +73,10 @@ theorem split_budget_total {ε : ℝ≥0} : ε / 2 + ε / 2 = ε := by
     Demonstrates nested product composition. -/
 theorem three_queries_budget {ε : ℝ≥0} (hε : ε ≠ 0) :
     let q := laplaceMech (D := List α) (fun l => (l.length : ℝ)) 1 (ε / 3)
-    IsPureDP ListAddRemove (q.prod (q.prod q)) (ε / 3 + (ε / 3 + ε / 3)) := by
+    IsPureDP ListHeadAddRemove (q.prod (q.prod q)) (ε / 3 + (ε / 3 + ε / 3)) := by
   intro q
   have hε3 : ε / 3 ≠ 0 := div_ne_zero hε (by norm_num)
-  have hq : IsPureDP ListAddRemove q (ε / 3) := by
+  have hq : IsPureDP ListHeadAddRemove q (ε / 3) := by
     apply laplaceMech_isPureDP hε3
     intro l₁ l₂ hadj; simp only [NNReal.coe_one]
     obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
@@ -93,7 +91,7 @@ theorem three_queries_budget {ε : ℝ≥0} (hε : ε ≠ 0) :
 private def countQuery (l : List α) : ℝ := (l.length : ℝ)
 
 private theorem countQuery_sensitivity :
-    HasL1Sensitivity ListAddRemove (countQuery (α := α)) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (countQuery (α := α)) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj; simp only [countQuery, NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
@@ -105,16 +103,13 @@ private theorem countQuery_sensitivity :
     compose *linearly* in ρ, and the final (ε,δ)-DP conversion gives
     much tighter bounds than basic composition for small ε. -/
 theorem two_gaussian_queries_zCDP {v : ℝ≥0} (hv : v ≠ 0) :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       ((gaussianMech (countQuery (α := α)) v).prod
        (gaussianMech (countQuery (α := α)) v))
-      ((1 : ℝ≥0) ^ 2 / (2 * v) + (1 : ℝ≥0) ^ 2 / (2 * v)) := by
-  apply isZCDP_prod
-    (gaussianMech_isZCDP hv countQuery_sensitivity)
-    (gaussianMech_isZCDP hv countQuery_sensitivity) <;>
-  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-    exact (gaussianReal_absolutelyContinuous _ hv).trans
-      (gaussianReal_absolutelyContinuous' _ hv)
+      ((1 : ℝ≥0) ^ 2 / (2 * v) + (1 : ℝ≥0) ^ 2 / (2 * v)) :=
+  isZCDP_prod
+    (gaussianMech_isZCDP hv countQuery_sensitivity.toL2)
+    (gaussianMech_isZCDP hv countQuery_sensitivity.toL2)
 
 /-- Concrete comparison: with v=2, each Gaussian query is (1/4)-zCDP.
     Two queries compose to (1/2)-zCDP.
@@ -128,11 +123,11 @@ theorem two_gaussian_queries_zCDP {v : ℝ≥0} (hv : v ≠ 0) :
     exponentially small δ, while basic Laplace gives 1-DP (no δ needed,
     but ε is fixed at 1 rather than adjustable). -/
 theorem comparison_laplace_vs_gaussian :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((laplaceMech (D := List α) (fun l => (l.length : ℝ)) 1 (1/2 : ℝ≥0)).prod
        (laplaceMech (D := List α) (fun l => (l.length : ℝ)) 1 (1/2 : ℝ≥0)))
       ((1/2 : ℝ≥0) + (1/2 : ℝ≥0)) ∧
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       ((gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)).prod
        (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)))
       ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) := by

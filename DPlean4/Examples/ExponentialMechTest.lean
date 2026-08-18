@@ -34,7 +34,7 @@ def boolCountUtility (p : α → Prop) [DecidablePred p] (l : List α) (b : Bool
 
 /-- Adding/removing one element changes count by at most 1. -/
 theorem boolCountUtility_sensitivity (p : α → Prop) [DecidablePred p] :
-    HasUtilitySensitivity ListAddRemove (boolCountUtility p) 1 := by
+    HasUtilitySensitivity ListHeadAddRemove (boolCountUtility p) 1 := by
   intro l₁ l₂ hadj b
   simp only [boolCountUtility]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj <;> rw [h.1, h.2] <;> split_ifs <;>
@@ -43,7 +43,7 @@ theorem boolCountUtility_sensitivity (p : α → Prop) [DecidablePred p] :
 
 /-- Private selection of True/False with ε-DP via exponential mechanism. -/
 theorem private_bool_select (p : α → Prop) [DecidablePred p] (ε : NNReal) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (expMech (boolCountUtility p) (ε : ℝ) 1) ε :=
   expMech_isPureDP (by norm_num : (0 : ℝ) < 1) (boolCountUtility_sensitivity p)
 

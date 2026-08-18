@@ -50,7 +50,7 @@ def filteredCountNeg (p : α → Bool) (l : List α) : ℝ :=
 
 /-- Counting elements matching p has sensitivity 1 under add/remove. -/
 theorem filteredCount_sens (p : α → Bool) :
-    HasL1Sensitivity ListAddRemove (filteredCount p) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (filteredCount p) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj
   simp only [filteredCount, NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
@@ -59,7 +59,7 @@ theorem filteredCount_sens (p : α → Bool) :
 
 /-- Counting elements NOT matching p has sensitivity 1 under add/remove. -/
 theorem filteredCountNeg_sens (p : α → Bool) :
-    HasL1Sensitivity ListAddRemove (filteredCountNeg p) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (filteredCountNeg p) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj
   simp only [filteredCountNeg, NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
@@ -79,11 +79,11 @@ private abbrev noisyCountNeg (p : α → Bool) (ε : ℝ≥0) : Mechanism (List 
   laplaceMech (filteredCountNeg p) (1 : ℝ≥0) ε
 
 private theorem noisyCount_pureDP (p : α → Bool) {ε : ℝ≥0} (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove (noisyCount p ε) ε :=
+    IsPureDP ListHeadAddRemove (noisyCount p ε) ε :=
   laplaceMech_isPureDP hε (filteredCount_sens p)
 
 private theorem noisyCountNeg_pureDP (p : α → Bool) {ε : ℝ≥0} (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove (noisyCountNeg p ε) ε :=
+    IsPureDP ListHeadAddRemove (noisyCountNeg p ε) ε :=
   laplaceMech_isPureDP hε (filteredCountNeg_sens p)
 
 -- ============================================================================
@@ -95,7 +95,7 @@ private theorem noisyCountNeg_pureDP (p : α → Bool) {ε : ℝ≥0} (hε : ε 
     Without parallel composition, two ε-DP mechanisms compose to 2ε-DP.
     This is correct but loose when the data is disjoint. -/
 theorem histogram_standard {ε : ℝ≥0} (hε : ε ≠ 0) (p : α → Bool) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((noisyCount p ε).prod (noisyCountNeg p ε))
       (ε + ε) :=
   isPureDP_prod (noisyCount_pureDP p hε) (noisyCountNeg_pureDP p hε)
@@ -107,7 +107,7 @@ theorem histogram_standard {ε : ℝ≥0} (hε : ε ≠ 0) (p : α → Bool) :
 /-- Adding/removing one element changes either the "positive" count or the
     "negative" count, but not both — the predicate partitions the data. -/
 theorem histogram_disjoint (p : α → Bool) :
-    ∀ l₁ l₂ : List α, ListAddRemove l₁ l₂ →
+    ∀ l₁ l₂ : List α, ListHeadAddRemove l₁ l₂ →
       noisyCount p (1 : ℝ≥0) l₁ = noisyCount p (1 : ℝ≥0) l₂ ∨
       noisyCountNeg p (1 : ℝ≥0) l₁ = noisyCountNeg p (1 : ℝ≥0) l₂ := by
   intro l₁ l₂ hadj
@@ -136,7 +136,7 @@ theorem histogram_disjoint (p : α → Bool) :
     in practice. It applies to any histogram where the bins partition the
     data (each record falls in exactly one bin). -/
 theorem histogram_parallel (p : α → Bool) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((noisyCount (α := α) p (1 : ℝ≥0)).prod (noisyCountNeg p (1 : ℝ≥0)))
       (max (1 : ℝ≥0) (1 : ℝ≥0)) :=
   isPureDP_parallel

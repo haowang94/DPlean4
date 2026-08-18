@@ -60,9 +60,9 @@ def maxQuery (l : List ℝ) : ℝ :=
     This means the Laplace mechanism with ANY finite noise scale would fail
     to provide ε-DP for the maximum query on unbounded data. -/
 theorem maxQuery_unbounded_sensitivity :
-    ∀ Δ : ℝ, ¬ HasL1Sensitivity ListAddRemove maxQuery Δ := by
+    ∀ Δ : ℝ, ¬ HasL1Sensitivity ListHeadAddRemove maxQuery Δ := by
   intro Δ hΔ
-  have h_adj : ListAddRemove [Δ + 1] [] := by
+  have h_adj : ListHeadAddRemove [Δ + 1] [] := by
     left; exact ⟨Δ + 1, [], rfl, rfl⟩
   have h_sens := hΔ [Δ + 1] [] h_adj
   simp only [maxQuery, List.foldl, sub_zero] at h_sens
@@ -83,9 +83,9 @@ def sumQuery (l : List ℝ) : ℝ :=
     For any Δ, adjacent databases ([Δ + 1], []) differ by Δ + 1 > Δ in sum.
     This is why `PrivateMeanEstimation.lean` uses clamped sums. -/
 theorem sumQuery_unbounded_sensitivity :
-    ∀ Δ : ℝ, ¬ HasL1Sensitivity ListAddRemove sumQuery Δ := by
+    ∀ Δ : ℝ, ¬ HasL1Sensitivity ListHeadAddRemove sumQuery Δ := by
   intro Δ hΔ
-  have h_adj : ListAddRemove [Δ + 1] ([] : List ℝ) := by
+  have h_adj : ListHeadAddRemove [Δ + 1] ([] : List ℝ) := by
     left; exact ⟨Δ + 1, [], rfl, rfl⟩
   have h_sens := hΔ [Δ + 1] [] h_adj
   simp only [sumQuery, List.sum_cons, List.sum_nil, add_zero, sub_zero] at h_sens

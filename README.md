@@ -1,109 +1,110 @@
-# DPlean4: Differential Privacy with Continuous Distributions in Lean 4
+# DPlean4: Differential Privacy in Lean 4
 
-A formal verification library for proving differential privacy (DP) of algorithms with continuous output distributions, built in Lean 4 with Mathlib.
+A formally verified library for differential privacy, built on [Lean 4](https://lean-lang.org/) and [Mathlib](https://leanprover-community.github.io/mathlib4_docs/). All theorems are machine-checked — if it compiles, the proofs are correct.
 
-All theorems are fully machine-checked with zero `sorry` axioms.
+## What's Included
 
-## Features
+### Privacy Definitions
+- Pure ε-DP
+- Approximate (ε, δ)-DP
+- Rényi DP (Mironov 2017)
+- Zero-concentrated DP (Bun & Dwork 2016)
+- Conversions between all notions (pure DP → zCDP → RDP → approximate DP)
 
 ### Mechanisms
-- Continuous Laplace mechanism with pure ε-DP proof
-- Continuous Gaussian mechanism with ρ-zCDP and (ε,δ)-DP proofs
-- Exponential mechanism (McSherry & Talwar 2007) with ε-DP proof
-- Sparse Vector Technique (single-query Above Threshold)
-- Report Noisy Max (via exponential mechanism)
+- **Laplace** — scalar and vector, pure ε-DP
+- **Gaussian** — scalar and vector, ρ-zCDP and (ε, δ)-DP
+- **Exponential** (McSherry & Talwar 2007) — ε-DP
+- **Sparse Vector Technique** — Above Threshold with ε-DP
+- **Report Noisy Max** — via exponential mechanism
+- **Randomized Response**
 
-### Privacy Definitions and Conversions
-- Pure ε-DP (measure-level event inequalities)
-- Approximate (ε,δ)-DP
-- Rényi DP (Mironov 2017) with RDP-to-(ε,δ)-DP conversion
-- Zero-concentrated DP / zCDP (Bun & Dwork 2016) with zCDP-to-(ε,δ)-DP conversion
-- Pure DP → zCDP → RDP conversion chain
-
-### Composition and Privacy Amplification
+### Composition and Amplification
 - Sequential composition (pure and approximate DP)
 - Parallel composition (disjoint data → max instead of sum)
-- Advanced composition via zCDP (√k scaling)
+- zCDP composition with conversion: ρ → (ε, δ)-DP
+- n-fold product composition over finite index types
 - Group privacy (k-hop adjacency chains)
 - Postprocessing preservation (all DP notions)
-- Privacy amplification by subsampling (Poisson subsampling)
-- k-fold mechanism combinator (Mechanism.piCopy)
+- Subsampling amplification bounds
 
 ### Foundations
 - Generic adjacency relations (add/remove, replace)
-- L1/L2 sensitivity with algebra (negation, subtraction, Lipschitz, max, min)
-- Rényi divergence (moments, DPI, product measures, tail bounds)
+- L1/L2 sensitivity with algebraic operations
+- Rényi divergence (moments, data processing inequality, product measures)
 
-### Counterexamples
-14 theorems proving specific mechanisms are NOT differentially private, including identity mechanism, buggy SVT, noise reuse, correlated mechanisms, data-dependent noise, thresholded histogram, conditional release, and unbounded sensitivity.
+## Getting Started
 
-### Examples
-- DP-SGD privacy analysis (gradient clipping + Gaussian noise + zCDP composition)
-- Private mean estimation (clamped sum + Laplace + postprocessing)
-- Private selection (exponential mechanism for model/feature selection)
-- Privacy budget management (Laplace splitting, Gaussian zCDP accounting)
-- Sensitivity calibration examples
-- End-to-end validation tests covering the full library pipeline
-
-## Key Theorems
-
-| Theorem | Statement | File |
-|---------|-----------|------|
-| `laplaceMech_isPureDP` | Laplace mechanism satisfies ε-DP | `Mechanism/Laplace.lean` |
-| `gaussianMech_isZCDP` | Gaussian mechanism satisfies ρ-zCDP | `Mechanism/Gaussian.lean` |
-| `expMech_isPureDP` | Exponential mechanism satisfies ε-DP | `Mechanism/Exponential.lean` |
-| `isPureDP_prod` | Independent composition: ε₁+ε₂ | `Privacy/Composition.lean` |
-| `isZCDP_prod` | zCDP composition: ρ₁+ρ₂ | `Privacy/ZCDP.lean` |
-| `isPureDP_parallel` | Parallel composition: max(ε₁,ε₂) | `Privacy/Composition.lean` |
-| `isPureDP_postprocess` | Postprocessing preserves DP | `Privacy/Postprocessing.lean` |
-| `isZCDP_to_isApproxDP` | zCDP → (ε,δ)-DP conversion | `Privacy/ZCDP.lean` |
-| `isRenyiDP_to_isApproxDP` | RDP → (ε,δ)-DP conversion | `Privacy/RenyiDP.lean` |
-| `pureMeasureClose_subsample` | Privacy amplification by subsampling | `Privacy/Subsampling.lean` |
-| `identityMech_not_pureDP` | Deterministic output is not DP | `Examples/Counterexamples.lean` |
-| `noiseReuse_not_pureDP` | Noise reuse breaks DP | `Examples/NoiseReuseCounterexample.lean` |
-
-## Architecture
-
-### Core Design Principles
-
-1. **Mechanisms as functions to probability measures**: `D → ProbabilityMeasure O`
-2. **Events first, divergences second**: DP defined via measurable-event inequalities; divergences (hockey-stick, Rényi) proved equivalent later
-3. **Generic adjacency**: Adjacency is a relation parameter, not a typeclass
-4. **No premature abstraction**: Concrete theorems before any abstract typeclass
-
-### Module Structure
-
-```
-DPlean4/
-  Basic/          -- Adjacency relations (add/remove, replace), L1/L2 sensitivity
-  Probability/    -- Mechanism representation (D → ProbabilityMeasure O), piCopy
-  Privacy/        -- DP definitions, composition, postprocessing, subsampling
-    MeasureClose.lean      -- Event-level DP inequalities
-    Pure.lean              -- Pure ε-DP
-    Approximate.lean       -- (ε,δ)-DP
-    Composition.lean       -- Sequential, parallel, group privacy
-    Postprocessing.lean    -- Postprocessing preservation
-    RenyiDivergence.lean   -- Rényi moments, DPI, product measures
-    RenyiDP.lean           -- (α,ε)-RDP, conversions to/from zCDP and approx DP
-    ZCDP.lean              -- ρ-zCDP, composition, conversion to (ε,δ)-DP
-    Subsampling.lean       -- Privacy amplification by Poisson subsampling
-  Distribution/   -- Laplace distribution (density, normalization, ratio bounds)
-  Mechanism/      -- Laplace, Gaussian, Exponential, SVT, Report Noisy Max
-  Examples/       -- 25 example/test files covering all features
-```
-
-## Dependencies
-
+### Requirements
 - Lean 4.33.0
 - Mathlib v4.33.0
 
-## Building
-
+### Build
 ```bash
 lake build
 ```
+The first build downloads ~2 GB of Mathlib precompiled binaries.
 
-The first build downloads ~2GB of Mathlib precompiled binaries.
+### Use as a Dependency
+Add to your `lakefile.toml`:
+```toml
+[[require]]
+name = "DPlean4"
+git = "https://github.com/haowang94/DPlean4"
+rev = "master"
+```
+
+### Quick Example
+```lean
+import DPlean4
+
+-- Laplace mechanism with sensitivity 1 satisfies 1-DP
+#check laplaceMech_isPureDP
+
+-- Gaussian mechanism satisfies zCDP
+#check gaussianMech_isZCDP
+
+-- Compose two mechanisms
+#check isPureDP_prod
+
+-- Convert zCDP to (ε,δ)-DP
+#check isApproxDP_of_isZCDP
+```
+
+## Module Structure
+
+```
+DPlean4/
+  Basic/          -- Adjacency relations, L1/L2 sensitivity
+  Probability/    -- Mechanism type (D → ProbabilityMeasure O)
+  Distribution/   -- Laplace distribution (density, normalization, ratio bounds)
+  Privacy/        -- DP definitions, composition, postprocessing, subsampling
+  Mechanism/      -- Laplace, Gaussian, Exponential, SVT, Report Noisy Max
+  Examples/       -- 27 worked examples covering all features
+```
+
+## Key Theorems
+
+| Theorem | Statement |
+|---------|-----------|
+| `laplaceMech_isPureDP` | Laplace mechanism satisfies ε-DP |
+| `gaussianMech_isZCDP` | Gaussian mechanism satisfies ρ-zCDP |
+| `expMech_isPureDP` | Exponential mechanism satisfies ε-DP |
+| `isPureDP_prod` | Sequential composition: ε₁ + ε₂ |
+| `isZCDP_prod` | zCDP composition: ρ₁ + ρ₂ |
+| `isPureDP_parallel` | Parallel composition: max(ε₁, ε₂) |
+| `isPureDP_postprocess` | Postprocessing preserves DP |
+| `isApproxDP_of_isZCDP` | zCDP → (ε, δ)-DP conversion |
+| `isApproxDP_of_isRenyiDP` | RDP → (ε, δ)-DP conversion |
+| `vectorGaussianMech_isZCDP` | Vector Gaussian mechanism satisfies ρ-zCDP |
+| `vectorLaplaceMech_isPureDP` | Vector Laplace mechanism satisfies ε-DP |
+
+## References
+
+- Dwork, McSherry, Nissim, Smith (2006). Calibrating Noise to Sensitivity in Private Data Analysis
+- McSherry & Talwar (2007). Mechanism Design via Differential Privacy
+- Bun & Dwork (2016). Concentrated Differential Privacy
+- Mironov (2017). Rényi Differential Privacy
 
 ## License
 

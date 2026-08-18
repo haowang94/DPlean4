@@ -10,7 +10,7 @@ import DPlean4.Privacy.Approximate
 import DPlean4.Probability.Mechanism
 
 /-!
-# Privacy Amplification by Subsampling
+# Directed Mixture Bounds Used in Subsampling Proofs
 
 This file proves the core measure-level inequalities underlying privacy
 amplification by subsampling (Balle et al., 2018; Kasiviswanathan et al., 2011).
@@ -27,20 +27,12 @@ amplification by subsampling (Balle et al., 2018; Kasiviswanathan et al., 2011).
 
 * `pureMeasureClose_subsample`: PureMeasureClose version connecting to the library
 
-## Privacy Interpretation
+## Scope
 
-In the Poisson subsampling model with rate q and add/remove adjacency:
-- Database d₁ has one extra record x compared to d₂
-- Subsampled output on d₁ = q · M(with x included) + (1-q) · M(without x)
-- Subsampled output on d₂ = M(without x)
-
-The measure-level bound gives:
-  Subsampled(d₁)(S) ≤ (1 + q·(exp(ε)-1)) · Subsampled(d₂)(S)
-
-so the subsampled mechanism is ln(1 + q·(exp(ε)-1))-DP.
-
-For small ε, ln(1 + q·(exp(ε)-1)) ≈ q·ε, giving the standard subsampling
-amplification: privacy cost scales as q·ε instead of ε.
+These are directed inequalities between an explicit mixture and its reference
+measure. This module does not implement Poisson sampling of databases and does
+not claim a two-direction mechanism-level privacy theorem. Such a theorem must
+connect an explicit sampling combinator to adjacency in both directions.
 
 ## References
 
@@ -178,7 +170,7 @@ theorem subsample_factor_eq_ennreal (q : NNReal) (hq : q ≤ 1) (ε : NNReal) :
 -- PureMeasureClose Result
 -- ============================================================================
 
-/-- **Privacy amplification by subsampling (pure DP)**:
+/-- **Directed pure-DP mixture inequality**:
     If μ ≤[ε] ν, then the mixture q·μ + (1-q)·ν is
     ln(1 + q·(exp(ε) - 1))-close to ν. -/
 theorem pureMeasureClose_subsample
@@ -196,12 +188,14 @@ theorem pureMeasureClose_subsample
 -- ============================================================================
 
 /-- subsampleEpsilon at q=0 is 0 (no subsampling = perfect privacy). -/
+@[simp]
 theorem subsampleEpsilon_zero (ε : NNReal) :
     subsampleEpsilon 0 ε = 0 := by
   simp only [subsampleEpsilon, NNReal.coe_zero, zero_mul, add_zero, Real.log_one]
   rfl
 
 /-- subsampleEpsilon at q=1 is ε (full sampling = no amplification). -/
+@[simp]
 theorem subsampleEpsilon_one (ε : NNReal) :
     subsampleEpsilon 1 ε = ε := by
   apply NNReal.coe_injective

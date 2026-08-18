@@ -5,9 +5,7 @@ Authors: DPlean4 Contributors
 -/
 
 import DPlean4.Mechanism.Laplace
-import DPlean4.Mechanism.Gaussian
 import DPlean4.Privacy.Composition
-import DPlean4.Privacy.ZCDP
 import DPlean4.Basic.Adjacency
 import DPlean4.Basic.Sensitivity
 
@@ -17,7 +15,7 @@ import DPlean4.Basic.Sensitivity
 This file demonstrates how the choice of adjacency relation affects privacy
 guarantees. Two standard notions exist:
 
-* **Add/Remove** (`ListAddRemove`): databases differ by adding or removing one record.
+* **Add/Remove** (`ListHeadAddRemove`): databases differ by adding or removing one record.
   Standard for "unbounded DP" (Dwork & Roth 2014).
 * **Replace** (`ListReplace`): databases have the same size but one record differs.
   Standard for "bounded DP" (used in many ML/statistics applications).
@@ -25,7 +23,7 @@ guarantees. Two standard notions exist:
 ## Key Results
 
 * Counting query has sensitivity 1 under add/remove but 0 under replace
-* Bounded sum query has sensitivity 2B under add/remove but B under replace
+* Bounded sum query has sensitivity B under both add/remove and replace
 * The factor-of-2 relationship between adjacency notions
 * A query that is trivially private under replace but not under add/remove
 
@@ -89,7 +87,7 @@ private theorem clamp_le_B {B : ℝ} (hB : 0 ≤ B) (x : ℝ) : max 0 (min B x) 
 /-- **Bounded sum has sensitivity B under add/remove adjacency.**
     Adding a record contributes at most B to the sum (after clamping). -/
 theorem boundedSum_addremove_sensitivity (f : α → ℝ) {B : NNReal} :
-    HasL1Sensitivity ListAddRemove (boundedSum f B) B := by
+    HasL1Sensitivity ListHeadAddRemove (boundedSum f B) B := by
   intro l₁ l₂ hadj; simp only [boundedSum]
   obtain ⟨a, s, h1, h2⟩ | ⟨a, s, h1, h2⟩ := hadj
   · rw [h1, h2]; simp only [List.map_cons, List.sum_cons]
@@ -109,7 +107,7 @@ theorem boundedSum_addremove_sensitivity (f : α → ℝ) {B : NNReal} :
 
 /-! ### Factor-of-2 relationship
 
-`ListReplace` can be simulated by two steps of `ListAddRemove` (remove old
+`ListReplace` can be simulated by two steps of `ListHeadAddRemove` (remove old
 record, add new record). This means:
 - ε-DP under add/remove ⟹ 2ε-DP under replace (via group privacy)
 - The converse does not hold in general
@@ -120,20 +118,15 @@ See `isPureDP_group_2` in `Privacy/Composition.lean` for the group privacy
 infrastructure that would be used. -/
 
 -- ============================================================================
--- Practical DP-ML example: Private mean under replace adjacency
+-- Practical DP-ML example: Private bounded sum under add/remove adjacency
 -- ============================================================================
 
-/-- **Private mean under replace adjacency**: when the dataset size n is public
-    (a common assumption in ML), replacing one record changes the mean by at most
-    2B/n. With Laplace noise calibrated to this sensitivity, the mechanism is ε-DP.
-
-    This is the standard analysis for DP-SGD with fixed batch size.
-
-    Note: we use sensitivity B under add/remove for the sum, which gives
-    B-DP via Laplace. Under replace, the sensitivity halves to B/2 if we
-    know n, giving tighter privacy. Here we demonstrate the add/remove version. -/
+/-- **Private bounded sum under add/remove adjacency**: bounded sum has
+    sensitivity B (since each clipped value is in [0, B] and adding/removing
+    one record changes the sum by at most B). With Laplace noise calibrated
+    to this sensitivity, the mechanism is ε-DP. -/
 theorem private_bounded_sum {ε : NNReal} (hε : ε ≠ 0) (f : α → ℝ) (B : NNReal) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (boundedSum f B) B ε) ε :=
   laplaceMech_isPureDP hε (boundedSum_addremove_sensitivity f)
 
@@ -141,7 +134,7 @@ theorem private_bounded_sum {ε : NNReal} (hε : ε ≠ 0) (f : α → ℝ) (B :
     independent Laplace noise gives (ε₁+ε₂)-DP via basic composition. -/
 theorem two_bounded_sums_compose {ε₁ ε₂ : NNReal} (hε₁ : ε₁ ≠ 0) (hε₂ : ε₂ ≠ 0)
     (f g : α → ℝ) (B₁ B₂ : NNReal) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((laplaceMech (boundedSum f B₁) B₁ ε₁).prod
        (laplaceMech (boundedSum g B₂) B₂ ε₂))
       (ε₁ + ε₂) :=

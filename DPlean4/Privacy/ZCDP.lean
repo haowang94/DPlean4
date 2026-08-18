@@ -20,7 +20,7 @@ theorem from zCDP to (ε,δ)-approximate DP.
 
 ## Main Results
 
-* `isZCDP_to_isApproxDP`: ρ-zCDP implies (ε,δ)-DP for ε ≥ ρ + 2√(ρ·log(1/δ))
+* `isApproxDP_of_isZCDP`: ρ-zCDP implies (ε,δ)-DP for ε ≥ ρ + 2√(ρ·log(1/δ))
 * `isZCDP_postprocess`: zCDP is preserved under measurable postprocessing
 
 ## Design Notes
@@ -45,23 +45,31 @@ variable {D O : Type*} [MeasurableSpace O]
     if for all adjacent databases d₁, d₂ and all α > 1:
     D_α(M(d₁)‖M(d₂)) ≤ ρ·α
 
-    Equivalently, the Rényi moment satisfies:
-    ∫ (dM(d₁)/dM(d₂))^α dM(d₂) ≤ exp((α-1)·ρ·α) -/
-def IsZCDP (adj : D → D → Prop) (M : Mechanism D O) (ρ : NNReal) : Prop :=
-  ∀ d₁ d₂, adj d₁ d₂ → ∀ α : ℝ, 1 < α →
+    This definition bundles absolute continuity and Rényi moment finiteness
+    alongside the divergence bound, ensuring IsZCDP is a self-contained
+    privacy guarantee. (Without these conditions, the Rényi divergence
+    convention `renyiDivergence = 0` when the moment is `⊤` would make
+    IsZCDP vacuously satisfiable by non-private mechanisms.) -/
+structure IsZCDP (adj : D → D → Prop) (M : Mechanism D O) (ρ : NNReal) : Prop where
+  ac : ∀ d₁ d₂, adj d₁ d₂ → (M d₁).toMeasure ≪ (M d₂).toMeasure
+  fin : ∀ d₁ d₂, adj d₁ d₂ → ∀ α : ℝ, 1 < α →
+    renyiMoment α (M d₁).toMeasure (M d₂).toMeasure ≠ ⊤
+  bound : ∀ d₁ d₂, adj d₁ d₂ → ∀ α : ℝ, 1 < α →
     renyiDivergence α (M d₁).toMeasure (M d₂).toMeasure ≤ ρ * α
 
 /-- zCDP is monotone: if M is ρ₁-zCDP and ρ₁ ≤ ρ₂, then M is ρ₂-zCDP. -/
 theorem isZCDP_mono {adj : D → D → Prop} {M : Mechanism D O} {ρ₁ ρ₂ : NNReal}
     (h : IsZCDP adj M ρ₁) (hle : ρ₁ ≤ ρ₂) :
-    IsZCDP adj M ρ₂ := by
-  intro d₁ d₂ hadj α hα
-  calc renyiDivergence α (M d₁).toMeasure (M d₂).toMeasure
-      ≤ ↑ρ₁ * α := h d₁ d₂ hadj α hα
-    _ ≤ ↑ρ₂ * α := by
-        apply mul_le_mul_of_nonneg_right
-        · exact_mod_cast hle
-        · linarith
+    IsZCDP adj M ρ₂ where
+  ac := h.ac
+  fin := h.fin
+  bound d₁ d₂ hadj α hα :=
+    calc renyiDivergence α (M d₁).toMeasure (M d₂).toMeasure
+        ≤ ↑ρ₁ * α := h.bound d₁ d₂ hadj α hα
+      _ ≤ ↑ρ₂ * α := by
+          apply mul_le_mul_of_nonneg_right
+          · exact_mod_cast hle
+          · linarith
 
 /-- **zCDP → (ε,δ)-DP conversion** (Bun & Dwork, 2016, Proposition 3).
 
@@ -73,11 +81,8 @@ theorem isZCDP_mono {adj : D → D → Prop} {M : Mechanism D O} {ρ₁ ρ₂ : 
     2. P({log(dP/dQ) > ε}) ≤ E_Q[(dP/dQ)^α] / exp((α-1)ε)  [Markov]
     3. ≤ exp((α-1)(ρα - ε))  [zCDP bound]
     4. Choose α = 1 + √(log(1/δ)/ρ) to get ≤ exp(-log(1/δ)) = δ -/
-theorem isZCDP_to_isApproxDP {adj : D → D → Prop} {M : Mechanism D O} {ρ : NNReal}
+theorem isApproxDP_of_isZCDP {adj : D → D → Prop} {M : Mechanism D O} {ρ : NNReal}
     (hM : IsZCDP adj M ρ) (hρ : 0 < ρ)
-    (hac : ∀ d₁ d₂, adj d₁ d₂ → (M d₁).toMeasure ≪ (M d₂).toMeasure)
-    (hfin : ∀ d₁ d₂, adj d₁ d₂ → ∀ α : ℝ, 1 < α →
-      renyiMoment α (M d₁).toMeasure (M d₂).toMeasure ≠ ⊤)
     {ε δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1)
     (hε : (ε : ℝ) ≥ ↑ρ + 2 * sqrt (↑ρ * log (1 / ↑δ))) :
     IsApproxDP adj M ε δ := by
@@ -90,8 +95,8 @@ theorem isZCDP_to_isApproxDP {adj : D → D → Prop} {M : Mechanism D O} {ρ : 
   intro d₁ d₂ hadj S hS
   set μ := (M d₁).toMeasure
   set ν := (M d₂).toMeasure
-  have hac' := hac d₁ d₂ hadj
-  have hfin' := hfin d₁ d₂ hadj α hα
+  have hac' := hM.ac d₁ d₂ hadj
+  have hfin' := hM.fin d₁ d₂ hadj α hα
   -- Step 1: Set threshold t = exp(ε)
   set t := ENNReal.ofReal (exp ↑ε) with ht_def
   have ht_ne : t ≠ 0 := by
@@ -101,7 +106,7 @@ theorem isZCDP_to_isApproxDP {adj : D → D → Prop} {M : Mechanism D O} {ρ : 
   have h_decomp := measure_le_mul_add_rnDeriv_tail hac' S t
   have h_tail := rnDeriv_tail_le_renyiMoment_div hac' (le_of_lt hα) ht_ne ht_top
   -- Step 3: Bound renyiMoment via zCDP
-  have h_zcdp := hM d₁ d₂ hadj α hα
+  have h_zcdp := hM.bound d₁ d₂ hadj α hα
   have h_moment := (renyiDivergence_le_iff hα (by positivity : (0:ℝ) ≤ ↑ρ * α) hfin').mp h_zcdp
   -- Step 4: Show tail ≤ δ
   suffices h_tail_le : renyiMoment α μ ν / t ^ (α - 1) ≤ (δ : ENNReal) by
@@ -168,23 +173,17 @@ theorem isZCDP_to_isApproxDP {adj : D → D → Prop} {M : Mechanism D O} {ρ : 
               field_simp
 
 /-- A weaker but simpler form: zCDP with explicit ε computation. -/
-theorem isZCDP_to_isApproxDP' {adj : D → D → Prop} {M : Mechanism D O} {ρ : NNReal}
+theorem isApproxDP_of_isZCDP' {adj : D → D → Prop} {M : Mechanism D O} {ρ : NNReal}
     (hM : IsZCDP adj M ρ) (hρ : 0 < ρ)
-    (hac : ∀ d₁ d₂, adj d₁ d₂ → (M d₁).toMeasure ≪ (M d₂).toMeasure)
-    (hfin : ∀ d₁ d₂, adj d₁ d₂ → ∀ α : ℝ, 1 < α →
-      renyiMoment α (M d₁).toMeasure (M d₂).toMeasure ≠ ⊤)
     {δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1) :
     ∃ ε : NNReal, IsApproxDP adj M ε δ := by
   refine ⟨⟨↑ρ + 2 * sqrt (↑ρ * log (1 / ↑δ)),
     add_nonneg (NNReal.coe_nonneg ρ) (mul_nonneg (by norm_num) (sqrt_nonneg _))⟩,
-    isZCDP_to_isApproxDP hM hρ hac hfin hδ hδ1 (le_refl _)⟩
+    isApproxDP_of_isZCDP hM hρ hδ hδ1 (le_refl _)⟩
 
 /-- zCDP implies approximate DP for any ε > ρ with suitable δ. -/
-theorem isZCDP_to_isPureDP_trivial {adj : D → D → Prop} {M : Mechanism D O} {ρ : NNReal}
-    (hM : IsZCDP adj M ρ) (hρ : 0 < ρ)
-    (hac : ∀ d₁ d₂, adj d₁ d₂ → (M d₁).toMeasure ≪ (M d₂).toMeasure)
-    (hfin : ∀ d₁ d₂, adj d₁ d₂ → ∀ α : ℝ, 1 < α →
-      renyiMoment α (M d₁).toMeasure (M d₂).toMeasure ≠ ⊤) :
+theorem isApproxDP_of_isZCDP_of_gt {adj : D → D → Prop} {M : Mechanism D O} {ρ : NNReal}
+    (hM : IsZCDP adj M ρ) (hρ : 0 < ρ) :
     ∀ ε : NNReal, (ε : ℝ) > ρ → ∃ δ : NNReal, IsApproxDP adj M ε δ := by
   intro ε hε
   have hρ' : (0 : ℝ) < ↑ρ := by exact_mod_cast hρ
@@ -192,7 +191,7 @@ theorem isZCDP_to_isPureDP_trivial {adj : D → D → Prop} {M : Mechanism D O} 
   set c : ℝ := ((↑ε : ℝ) - ↑ρ) ^ 2 / (4 * ↑ρ)
   have hc_pos : 0 < c := div_pos (sq_pos_of_pos hερ) (by positivity)
   refine ⟨⟨exp (-c), (exp_pos _).le⟩,
-    isZCDP_to_isApproxDP hM hρ hac hfin ?_ ?_ ?_⟩
+    isApproxDP_of_isZCDP hM hρ ?_ ?_ ?_⟩
   · exact_mod_cast exp_pos (-c)
   · change exp (-c) < 1
     exact exp_lt_one_iff.mpr (by linarith)
@@ -213,40 +212,40 @@ variable {O₂ : Type*} [MeasurableSpace O₂]
 /-- zCDP is preserved under measurable postprocessing.
 
     This follows from the data processing inequality for Rényi divergence:
-    D_α(f#μ ‖ f#ν) ≤ D_α(μ ‖ ν) for any measurable f.
-
-    Requires absolute continuity and finite Rényi moments (both implied by the
-    mathematical zCDP definition, but made explicit here due to our convention
-    that `renyiDivergence = 0` when the moment is `⊤`). -/
+    D_α(f#μ ‖ f#ν) ≤ D_α(μ ‖ ν) for any measurable f. -/
 theorem isZCDP_postprocess {adj : D → D → Prop} {M : Mechanism D O} {ρ : NNReal}
-    (hM : IsZCDP adj M ρ) {f : O → O₂} (hf : Measurable f)
-    (hac : ∀ d₁ d₂, adj d₁ d₂ → (M d₁).toMeasure ≪ (M d₂).toMeasure)
-    (hfin : ∀ d₁ d₂, adj d₁ d₂ → ∀ α : ℝ, 1 < α →
-      renyiMoment α (M d₁).toMeasure (M d₂).toMeasure ≠ ⊤) :
-    IsZCDP adj (fun d => (M d).map hf.aemeasurable) ρ := by
-  intro d₁ d₂ hadj α hα
-  simp only [ProbabilityMeasure.toMeasure_map]
-  set μ := (M d₁).toMeasure
-  set ν := (M d₂).toMeasure
-  have hac' := hac d₁ d₂ hadj
-  have hfin' := hfin d₁ d₂ hadj α hα
-  have h_moment := renyiMoment_map_le hac' hf (le_of_lt hα) hfin'
-  have h_mapped_fin : renyiMoment α (μ.map f) (ν.map f) ≠ ⊤ :=
-    ne_top_of_le_ne_top hfin' h_moment
-  have : IsProbabilityMeasure (μ.map f) := μ.isProbabilityMeasure_map hf.aemeasurable
-  have : IsProbabilityMeasure (ν.map f) := ν.isProbabilityMeasure_map hf.aemeasurable
-  have h_mapped_ge : 1 ≤ renyiMoment α (μ.map f) (ν.map f) :=
-    renyiMoment_ge_one hα (hac'.map hf)
-  have h_mapped_pos : renyiMoment α (μ.map f) (ν.map f) ≠ 0 := by
-    intro h; rw [h] at h_mapped_ge; simp at h_mapped_ge
-  simp only [renyiDivergence]
-  have hα_pos : (0 : ℝ) < α - 1 := by linarith
-  calc (α - 1)⁻¹ * log (renyiMoment α (μ.map f) (ν.map f)).toReal
-      ≤ (α - 1)⁻¹ * log (renyiMoment α μ ν).toReal := by
-        apply mul_le_mul_of_nonneg_left _ (inv_nonneg.mpr hα_pos.le)
-        exact log_le_log (ENNReal.toReal_pos h_mapped_pos h_mapped_fin)
-          (ENNReal.toReal_mono hfin' h_moment)
-    _ ≤ ↑ρ * α := hM d₁ d₂ hadj α hα
+    (hM : IsZCDP adj M ρ) {f : O → O₂} (hf : Measurable f) :
+    IsZCDP adj (fun d => (M d).map hf.aemeasurable) ρ where
+  ac d₁ d₂ hadj := by
+    simp only [ProbabilityMeasure.toMeasure_map]
+    exact (hM.ac d₁ d₂ hadj).map hf
+  fin d₁ d₂ hadj α hα := by
+    simp only [ProbabilityMeasure.toMeasure_map]
+    exact ne_top_of_le_ne_top (hM.fin d₁ d₂ hadj α hα)
+      (renyiMoment_map_le (hM.ac d₁ d₂ hadj) hf (le_of_lt hα) (hM.fin d₁ d₂ hadj α hα))
+  bound d₁ d₂ hadj α hα := by
+    simp only [ProbabilityMeasure.toMeasure_map]
+    set μ := (M d₁).toMeasure
+    set ν := (M d₂).toMeasure
+    have hac' := hM.ac d₁ d₂ hadj
+    have hfin' := hM.fin d₁ d₂ hadj α hα
+    have h_moment := renyiMoment_map_le hac' hf (le_of_lt hα) hfin'
+    have h_mapped_fin : renyiMoment α (μ.map f) (ν.map f) ≠ ⊤ :=
+      ne_top_of_le_ne_top hfin' h_moment
+    have : IsProbabilityMeasure (μ.map f) := μ.isProbabilityMeasure_map hf.aemeasurable
+    have : IsProbabilityMeasure (ν.map f) := ν.isProbabilityMeasure_map hf.aemeasurable
+    have h_mapped_ge : 1 ≤ renyiMoment α (μ.map f) (ν.map f) :=
+      renyiMoment_ge_one hα (hac'.map hf)
+    have h_mapped_pos : renyiMoment α (μ.map f) (ν.map f) ≠ 0 := by
+      intro h; rw [h] at h_mapped_ge; simp at h_mapped_ge
+    simp only [renyiDivergence]
+    have hα_pos : (0 : ℝ) < α - 1 := by linarith
+    calc (α - 1)⁻¹ * log (renyiMoment α (μ.map f) (ν.map f)).toReal
+        ≤ (α - 1)⁻¹ * log (renyiMoment α μ ν).toReal := by
+          apply mul_le_mul_of_nonneg_left _ (inv_nonneg.mpr hα_pos.le)
+          exact log_le_log (ENNReal.toReal_pos h_mapped_pos h_mapped_fin)
+            (ENNReal.toReal_mono hfin' h_moment)
+      _ ≤ ↑ρ * α := hM.bound d₁ d₂ hadj α hα
 
 end Postprocessing
 
@@ -261,29 +260,34 @@ variable {O₁ O₂ : Type*} [MeasurableSpace O₁] [MeasurableSpace O₂]
     D_α(μ₁⊗μ₂ ‖ ν₁⊗ν₂) = D_α(μ₁‖ν₁) + D_α(μ₂‖ν₂). -/
 theorem isZCDP_prod {adj : D → D → Prop}
     {M₁ : Mechanism D O₁} {M₂ : Mechanism D O₂} {ρ₁ ρ₂ : NNReal}
-    (h₁ : IsZCDP adj M₁ ρ₁) (h₂ : IsZCDP adj M₂ ρ₂)
-    (hac₁ : ∀ d₁ d₂, adj d₁ d₂ → (M₁ d₁).toMeasure ≪ (M₁ d₂).toMeasure)
-    (hac₂ : ∀ d₁ d₂, adj d₁ d₂ → (M₂ d₁).toMeasure ≪ (M₂ d₂).toMeasure) :
-    IsZCDP adj (M₁.prod M₂) (ρ₁ + ρ₂) := by
-  intro d₁ d₂ hadj α hα
-  simp only [Mechanism.prod_toMeasure]
-  have hac₁' := hac₁ d₁ d₂ hadj
-  have hac₂' := hac₂ d₁ d₂ hadj
-  have hd₁ := h₁ d₁ d₂ hadj α hα
-  have hd₂ := h₂ d₁ d₂ hadj α hα
-  simp only [renyiDivergence] at hd₁ hd₂ ⊢
-  rw [renyiMoment_prod hac₁' hac₂' (by linarith : (0 : ℝ) ≤ α), ENNReal.toReal_mul]
-  set m₁ := (renyiMoment α (M₁ d₁).toMeasure (M₁ d₂).toMeasure).toReal
-  set m₂ := (renyiMoment α (M₂ d₁).toMeasure (M₂ d₂).toMeasure).toReal
-  by_cases hm₁ : m₁ = 0
-  · simp only [hm₁, zero_mul, Real.log_zero, mul_zero]
-    positivity
-  · by_cases hm₂ : m₂ = 0
-    · simp only [hm₂, mul_zero, Real.log_zero, mul_zero]
+    (h₁ : IsZCDP adj M₁ ρ₁) (h₂ : IsZCDP adj M₂ ρ₂) :
+    IsZCDP adj (M₁.prod M₂) (ρ₁ + ρ₂) where
+  ac d₁ d₂ hadj := by
+    simp only [Mechanism.prod_toMeasure]
+    exact Measure.AbsolutelyContinuous.prod (h₁.ac d₁ d₂ hadj) (h₂.ac d₁ d₂ hadj)
+  fin d₁ d₂ hadj α hα := by
+    simp only [Mechanism.prod_toMeasure]
+    rw [renyiMoment_prod (h₁.ac d₁ d₂ hadj) (h₂.ac d₁ d₂ hadj) (by linarith : (0 : ℝ) ≤ α)]
+    exact ENNReal.mul_ne_top (h₁.fin d₁ d₂ hadj α hα) (h₂.fin d₁ d₂ hadj α hα)
+  bound d₁ d₂ hadj α hα := by
+    simp only [Mechanism.prod_toMeasure]
+    have hac₁' := h₁.ac d₁ d₂ hadj
+    have hac₂' := h₂.ac d₁ d₂ hadj
+    have hd₁ := h₁.bound d₁ d₂ hadj α hα
+    have hd₂ := h₂.bound d₁ d₂ hadj α hα
+    simp only [renyiDivergence] at hd₁ hd₂ ⊢
+    rw [renyiMoment_prod hac₁' hac₂' (by linarith : (0 : ℝ) ≤ α), ENNReal.toReal_mul]
+    set m₁ := (renyiMoment α (M₁ d₁).toMeasure (M₁ d₂).toMeasure).toReal
+    set m₂ := (renyiMoment α (M₂ d₁).toMeasure (M₂ d₂).toMeasure).toReal
+    by_cases hm₁ : m₁ = 0
+    · simp only [hm₁, zero_mul, Real.log_zero, mul_zero]
       positivity
-    · rw [Real.log_mul hm₁ hm₂, mul_add]
-      have : ↑(ρ₁ + ρ₂) * α = ↑ρ₁ * α + ↑ρ₂ * α := by push_cast; ring
-      linarith
+    · by_cases hm₂ : m₂ = 0
+      · simp only [hm₂, mul_zero, Real.log_zero, mul_zero]
+        positivity
+      · rw [Real.log_mul hm₁ hm₂, mul_add]
+        have : ↑(ρ₁ + ρ₂) * α = ↑ρ₁ * α + ↑ρ₂ * α := by push_cast; ring
+        linarith
 
 end Composition
 

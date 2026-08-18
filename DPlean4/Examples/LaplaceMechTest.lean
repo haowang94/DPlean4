@@ -36,7 +36,7 @@ variable {α : Type*}
 /-- The counting query `|l|` has L1 sensitivity 1 under add/remove,
     stated directly in the NNReal coercion form needed by `laplaceMech_isPureDP`. -/
 theorem countQuery_sens :
-    HasL1Sensitivity ListAddRemove (fun (l : List α) => (l.length : ℝ)) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (fun (l : List α) => (l.length : ℝ)) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj
   simp only [NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
@@ -45,9 +45,9 @@ theorem countQuery_sens :
 
 /-- A constant function has L1 sensitivity 0. -/
 theorem const_sens (c : ℝ) :
-    HasL1Sensitivity ListAddRemove (fun (_ : List α) => c) (↑(0 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (fun (_ : List α) => c) (↑(0 : ℝ≥0)) := by
   simp only [NNReal.coe_zero]
-  exact constant_hasL1Sensitivity_zero ListAddRemove c
+  exact constant_hasL1Sensitivity_zero ListHeadAddRemove c
 
 -- ============================================================================
 -- Test 1: Basic Laplace mechanism — 1-DP for count query
@@ -55,7 +55,7 @@ theorem const_sens (c : ℝ) :
 
 /-- The Laplace mechanism with Δ=1, ε=1 satisfies 1-DP for the count query. -/
 theorem laplace_count_1dp :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0))
       (1 : ℝ≥0) :=
   laplaceMech_isPureDP one_ne_zero countQuery_sens
@@ -66,7 +66,7 @@ theorem laplace_count_1dp :
 
 /-- Constant query with ε gives ε-DP (mechanism is a Dirac mass at the constant). -/
 theorem laplace_const_dp (c : ℝ) {ε : ℝ≥0} (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (D := List α) (fun _ => c) (0 : ℝ≥0) ε) ε :=
   laplaceMech_isPureDP hε (const_sens c)
 
@@ -76,10 +76,10 @@ theorem laplace_const_dp (c : ℝ) {ε : ℝ≥0} (hε : ε ≠ 0) :
 
 /-- 1-DP implies (1, δ)-approximate DP for any δ. -/
 theorem laplace_count_approx_dp (δ : NNReal) :
-    IsApproxDP ListAddRemove
+    IsApproxDP ListHeadAddRemove
       (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0))
       (1 : ℝ≥0) δ :=
-  isPureDP_to_isApproxDP δ laplace_count_1dp
+  isApproxDP_of_isPureDP δ laplace_count_1dp
 
 -- ============================================================================
 -- Test 4: Monotonicity — ε-DP implies ε'-DP for ε' ≥ ε
@@ -87,7 +87,7 @@ theorem laplace_count_approx_dp (δ : NNReal) :
 
 /-- 1-DP implies 2-DP. -/
 theorem laplace_count_relaxed :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0))
       (2 : ℝ≥0) :=
   isPureDP_mono laplace_count_1dp (by norm_num)
@@ -100,7 +100,7 @@ theorem laplace_count_relaxed :
     This is genuine composition: the result is about the joint mechanism `(M₁, M₂)`,
     not a monotonicity relaxation of a single mechanism. -/
 theorem laplace_compose_product :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)).prod
        (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)))
       ((1 : ℝ≥0) + (1 : ℝ≥0)) :=
@@ -115,7 +115,7 @@ theorem laplace_compose_product :
 /-- Two independent (1,δ)-DP Laplace mechanisms compose to (2, exp(1)·δ+δ)-DP.
     Exercises the new `isApproxDP_prod` theorem. -/
 theorem laplace_compose_approxDP (δ : NNReal) :
-    IsApproxDP ListAddRemove
+    IsApproxDP ListHeadAddRemove
       ((laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)).prod
        (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)))
       ((1 : ℝ≥0) + (1 : ℝ≥0))
@@ -130,7 +130,7 @@ theorem laplace_compose_approxDP (δ : NNReal) :
 
 /-- Clamping to nonneg preserves DP. -/
 theorem laplace_postprocess :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (fun (d : List α) =>
         (laplaceMech (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0) d).map
           (measurable_const (a := (0 : ℝ)) |>.max measurable_id).aemeasurable)
@@ -144,7 +144,7 @@ theorem laplace_postprocess :
 
 /-- 2-hop adjacency chain gives (1+1)-close bound. -/
 theorem laplace_group_2hop {l₁ l₂ l₃ : List α}
-    (h₁₂ : ListAddRemove l₁ l₂) (h₂₃ : ListAddRemove l₂ l₃) :
+    (h₁₂ : ListHeadAddRemove l₁ l₂) (h₂₃ : ListHeadAddRemove l₂ l₃) :
     PureMeasureClose ((1 : ℝ≥0) + (1 : ℝ≥0))
       (laplaceMech (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0) l₁)
       (laplaceMech (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0) l₃) :=

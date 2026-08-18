@@ -40,7 +40,7 @@ def IsApproxDP (adj : D → D → Prop) (M : Mechanism D O) (ε δ : NNReal) : P
   ∀ d₁ d₂, adj d₁ d₂ → MeasureClose ε δ (M d₁) (M d₂)
 
 /-- Pure ε-DP implies (ε,δ)-DP for any δ. -/
-theorem isPureDP_to_isApproxDP {adj : D → D → Prop} {M : Mechanism D O} {ε : NNReal} (δ : NNReal)
+theorem isApproxDP_of_isPureDP {adj : D → D → Prop} {M : Mechanism D O} {ε : NNReal} (δ : NNReal)
     (h : IsPureDP adj M ε) :
     IsApproxDP adj M ε δ := by
   intro d₁ d₂ hadj

@@ -12,11 +12,10 @@ import DPlean4.Privacy.RenyiDP
 import DPlean4.Basic.Adjacency
 
 /-!
-# Advanced Composition: √k Scaling via zCDP
+# Independent Gaussian Composition via zCDP
 
-This file demonstrates the **advanced composition theorem**: when composing
-k differentially private mechanisms, the total privacy cost grows as √k rather
-than k (the "naïve" basic composition bound).
+This file demonstrates independent product composition. It does not formalize
+the adaptive advanced-composition theorem.
 
 ## Background
 
@@ -26,16 +25,17 @@ than k (the "naïve" basic composition bound).
 **Advanced composition** (Dwork, Rothblum, Vadhan 2010):
 - k mechanisms, each ε₀-DP → (ε₀√(2k·ln(1/δ)) + kε₀(e^ε₀-1), kδ₀+δ)-DP
 
-The modern approach uses **concentrated DP (zCDP)** to obtain √k scaling:
+The zCDP accounting route is:
 1. Each mechanism has ρ-zCDP (e.g., Gaussian with ρ = Δ²/(2v))
 2. k-fold composition gives kρ-zCDP (linear in ρ)
 3. Convert to (ε,δ)-DP: ε = kρ + 2√(kρ·ln(1/δ))
-4. For fixed per-step budget: the √k term dominates for large k
+4. The result contains both a linear and a square-root term; the linear term
+   eventually dominates as k grows
 
 ## Examples in This File
 
 * Basic composition: 4 Laplace queries → 4ε-DP
-* Advanced composition via zCDP: 4 Gaussian queries → √k scaling
+* Independent composition via zCDP: 4 Gaussian queries
 * RDP view of the same composition
 
 ## References
@@ -62,7 +62,7 @@ variable {α : Type*}
 private def countQ (l : List α) : ℝ := (l.length : ℝ)
 
 private theorem countQ_sensitivity :
-    HasL1Sensitivity ListAddRemove (countQ (α := α)) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (countQ (α := α)) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj; simp only [countQ, NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
@@ -76,7 +76,7 @@ private theorem countQ_sensitivity :
     This is the naïve bound — privacy cost grows linearly with k. -/
 theorem basic_composition_4_laplace {ε : NNReal} (hε : ε ≠ 0) :
     let M := laplaceMech (D := List α) countQ 1 ε
-    IsPureDP ListAddRemove (M.prod M |>.prod (M.prod M)) ((ε + ε) + (ε + ε)) := by
+    IsPureDP ListHeadAddRemove (M.prod M |>.prod (M.prod M)) ((ε + ε) + (ε + ε)) := by
   intro M
   exact isPureDP_prod
     (isPureDP_prod (laplaceMech_isPureDP hε countQ_sensitivity)
@@ -85,34 +85,16 @@ theorem basic_composition_4_laplace {ε : NNReal} (hε : ε ≠ 0) :
                    (laplaceMech_isPureDP hε countQ_sensitivity))
 
 -- ============================================================================
--- Advanced Composition via zCDP: 4 Gaussian queries → √k scaling
+-- Independent composition via zCDP: 4 Gaussian queries
 -- ============================================================================
-
-private theorem gaussianCount_ac' {v : ℝ≥0} (hv : v ≠ 0) :
-    ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ →
-      (gaussianMech (D := List α) countQ v d₁).toMeasure ≪
-        (gaussianMech (D := List α) countQ v d₂).toMeasure := by
-  intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-  exact (gaussianReal_absolutelyContinuous _ hv).trans
-    (gaussianReal_absolutelyContinuous' _ hv)
-
-private theorem gaussianCount_fin {v : ℝ≥0} (hv : v ≠ 0) :
-    ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ → ∀ a : ℝ, 1 < a →
-      renyiMoment a (gaussianMech (D := List α) countQ v d₁).toMeasure
-        (gaussianMech (D := List α) countQ v d₂).toMeasure ≠ ⊤ := by
-  intro d₁ d₂ _ a ha
-  simp only [gaussianMech_toMeasure]
-  rw [renyiMoment_gaussianReal_same_var hv ha]
-  exact ENNReal.ofReal_ne_top
 
 /-- **zCDP composition**: 2 Gaussian counting queries compose to 2ρ-zCDP. -/
 theorem two_gaussian_queries_zCDP' {v : ℝ≥0} (hv : v ≠ 0) :
     let M := gaussianMech (D := List α) countQ v
     let ρ := (1 : ℝ≥0) ^ 2 / (2 * v)
-    IsZCDP ListAddRemove (M.prod M) (ρ + ρ) :=
-  isZCDP_prod (gaussianMech_isZCDP hv countQ_sensitivity)
-    (gaussianMech_isZCDP hv countQ_sensitivity)
-    (gaussianCount_ac' hv) (gaussianCount_ac' hv)
+    IsZCDP ListHeadAddRemove (M.prod M) (ρ + ρ) :=
+  isZCDP_prod (gaussianMech_isZCDP hv countQ_sensitivity.toL2)
+    (gaussianMech_isZCDP hv countQ_sensitivity.toL2)
 
 /-- **zCDP composition**: 4 Gaussian counting queries compose to 4ρ-zCDP.
     With ρ = Δ²/(2v) = 1/(2v), total is 4/(2v) = 2/v.
@@ -120,57 +102,26 @@ theorem two_gaussian_queries_zCDP' {v : ℝ≥0} (hv : v ≠ 0) :
 theorem four_gaussian_queries_zCDP {v : ℝ≥0} (hv : v ≠ 0) :
     let M := gaussianMech (D := List α) countQ v
     let ρ := (1 : ℝ≥0) ^ 2 / (2 * v)
-    IsZCDP ListAddRemove (M.prod M |>.prod (M.prod M)) ((ρ + ρ) + (ρ + ρ)) := by
+    IsZCDP ListHeadAddRemove (M.prod M |>.prod (M.prod M)) ((ρ + ρ) + (ρ + ρ)) := by
   intro M ρ
-  have hM := gaussianMech_isZCDP (D := List α) hv countQ_sensitivity
-  have hac := gaussianCount_ac' (α := α) hv
-  have h2 := isZCDP_prod hM hM hac hac
-  have hac2 : ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ →
-      (M.prod M d₁).toMeasure ≪ (M.prod M d₂).toMeasure := by
-    intro d₁ d₂ hadj
-    simp only [Mechanism.prod_toMeasure]
-    exact Measure.AbsolutelyContinuous.prod (hac d₁ d₂ hadj) (hac d₁ d₂ hadj)
-  exact isZCDP_prod h2 h2 hac2 hac2
+  have hM := gaussianMech_isZCDP (D := List α) hv countQ_sensitivity.toL2
+  exact isZCDP_prod (isZCDP_prod hM hM) (isZCDP_prod hM hM)
 
-/-- **√k scaling via zCDP → (ε,δ)-DP conversion**: after 4 Gaussian queries,
+/-- **zCDP → (ε,δ)-DP conversion**: after 4 Gaussian queries,
     the (ε,δ)-DP bound has ε = 4ρ + 2√(4ρ · ln(1/δ)).
 
     Compare: basic composition gives 4ε₀ (linear in k=4).
-    Advanced (zCDP): ε ≈ 2√(k·ρ·ln(1/δ)) for large k → √k scaling.
+    zCDP gives exactly the displayed linear-plus-square-root expression.
 
     This existential form guarantees that *some* ε achieves (ε,δ)-DP. -/
 theorem four_gaussian_queries_approxDP {v : ℝ≥0} (hv : v ≠ 0)
     {δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1) :
     let M := gaussianMech (D := List α) countQ v
     let ρ := (1 : ℝ≥0) ^ 2 / (2 * v)
-    ∃ ε : NNReal, IsApproxDP ListAddRemove (M.prod M |>.prod (M.prod M)) ε δ := by
+    ∃ ε : NNReal, IsApproxDP ListHeadAddRemove (M.prod M |>.prod (M.prod M)) ε δ := by
   intro M ρ
-  set ρ₄ : ℝ≥0 := (ρ + ρ) + (ρ + ρ) with hρ₄_def
-  have hρ₄ : 0 < ρ₄ := by positivity
-  have h_zcdp := four_gaussian_queries_zCDP (α := α) hv
-  have hac := gaussianCount_ac' (α := α) hv
-  set M4 := M.prod M |>.prod (M.prod M) with hM4_def
-  have h_prod_ac : ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ →
-      (M4 d₁).toMeasure ≪ (M4 d₂).toMeasure := by
-    intro d₁ d₂ hadj; simp only [hM4_def]
-    simp only [Mechanism.prod_toMeasure]
-    exact Measure.AbsolutelyContinuous.prod
-      (Measure.AbsolutelyContinuous.prod (hac d₁ d₂ hadj) (hac d₁ d₂ hadj))
-      (Measure.AbsolutelyContinuous.prod (hac d₁ d₂ hadj) (hac d₁ d₂ hadj))
-  have hfin := gaussianCount_fin (α := α) hv
-  exact isZCDP_to_isApproxDP' h_zcdp hρ₄ h_prod_ac
-    (fun d₁ d₂ hadj a ha => by
-      simp only [Mechanism.prod_toMeasure]
-      rw [renyiMoment_prod
-        (Measure.AbsolutelyContinuous.prod (hac d₁ d₂ hadj) (hac d₁ d₂ hadj))
-        (Measure.AbsolutelyContinuous.prod (hac d₁ d₂ hadj) (hac d₁ d₂ hadj))
-        (by linarith)]
-      apply ENNReal.mul_ne_top
-      · rw [renyiMoment_prod (hac d₁ d₂ hadj) (hac d₁ d₂ hadj) (by linarith)]
-        exact ENNReal.mul_ne_top (hfin d₁ d₂ hadj a ha) (hfin d₁ d₂ hadj a ha)
-      · rw [renyiMoment_prod (hac d₁ d₂ hadj) (hac d₁ d₂ hadj) (by linarith)]
-        exact ENNReal.mul_ne_top (hfin d₁ d₂ hadj a ha) (hfin d₁ d₂ hadj a ha))
-    hδ hδ1
+  exact isApproxDP_of_isZCDP' (four_gaussian_queries_zCDP (α := α) hv)
+    (by positivity) hδ hδ1
 
 -- ============================================================================
 -- RDP view: 4 Gaussian queries at each order α
@@ -182,7 +133,7 @@ theorem four_gaussian_queries_approxDP {v : ℝ≥0} (hv : v ≠ 0)
 theorem four_gaussian_queries_isRenyiDP {v : ℝ≥0} (hv : v ≠ 0) {a : ℝ} (ha : 1 < a) :
     let M := gaussianMech (D := List α) countQ v
     let ρ := (1 : ℝ≥0) ^ 2 / (2 * v)
-    IsRenyiDP ListAddRemove (M.prod M |>.prod (M.prod M))
+    IsRenyiDP ListHeadAddRemove (M.prod M |>.prod (M.prod M))
       a ((((ρ + ρ) + (ρ + ρ) : ℝ≥0) : ℝ) * a) :=
   isRenyiDP_of_isZCDP (four_gaussian_queries_zCDP hv) ha
 
@@ -195,11 +146,11 @@ theorem four_gaussian_queries_isRenyiDP {v : ℝ≥0} (hv : v ≠ 0) {a : ℝ} (
     ε = 1 + 2√(ln(1/δ)) via zCDP → (ε,δ)-DP conversion.
 
     In contrast, basic composition of 4 (ε₀,δ₀)-DP queries gives 4ε₀.
-    For k queries: zCDP gives ε ∝ √k, basic gives ε ∝ k. -/
+    The converted zCDP bound contains both `kρ` and a square-root term. -/
 theorem four_gaussian_v2_zCDP :
     let M := gaussianMech (D := List α) countQ (2 : ℝ≥0)
     let ρ := (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))
-    IsZCDP ListAddRemove (M.prod M |>.prod (M.prod M)) ((ρ + ρ) + (ρ + ρ)) :=
+    IsZCDP ListHeadAddRemove (M.prod M |>.prod (M.prod M)) ((ρ + ρ) + (ρ + ρ)) :=
   four_gaussian_queries_zCDP (by norm_num)
 
 end DPlean4.Examples

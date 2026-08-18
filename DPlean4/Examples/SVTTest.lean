@@ -23,7 +23,7 @@ variable {α : Type*} [DecidableEq α]
 
 /-- Count query has L1 sensitivity 1 under add/remove adjacency. -/
 private theorem count_sensitivity :
-    HasL1Sensitivity ListAddRemove (fun (l : List α) => (l.length : ℝ)) 1 := by
+    HasL1Sensitivity ListHeadAddRemove (fun (l : List α) => (l.length : ℝ)) 1 := by
   intro l₁ l₂ hadj
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj <;> rw [h.1, h.2] <;>
     simp [List.length_cons] <;> norm_num
@@ -31,14 +31,14 @@ private theorem count_sensitivity :
 /-- Private threshold test on list count: is the count above T?
     ε-DP for any ε > 0. -/
 theorem private_count_threshold (T : ℝ) (ε : NNReal) (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (aboveThreshold (fun (l : List α) => (l.length : ℝ)) T 1 ε) ε :=
   aboveThreshold_isPureDP T hε count_sensitivity
 
 /-- Private threshold test with shared threshold noise.
     ε-DP regardless of the threshold noise scale b_t. -/
 theorem private_count_noisy_threshold (T : ℝ) (ε : NNReal) (b_t : NNReal) (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (noisyAboveThreshold (fun (l : List α) => (l.length : ℝ)) T 1 ε b_t) ε :=
   noisyAboveThreshold_isPureDP T b_t hε count_sensitivity
 

@@ -63,7 +63,7 @@ private theorem lo_le_clamp {lo hi x : ℝ} : lo ≤ clamp lo hi x := by
 /-- The clamped sum over [0, B] has sensitivity B under add/remove adjacency.
     Adding one element changes the sum by at most B (the element's clamped value). -/
 theorem clampedSum_sensitivity {B : ℝ} (hB : 0 ≤ B) (f : α → ℝ) :
-    HasL1Sensitivity ListAddRemove (clampedSum f 0 B) B := by
+    HasL1Sensitivity ListHeadAddRemove (clampedSum f 0 B) B := by
   intro l₁ l₂ hadj
   simp only [clampedSum]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
@@ -91,7 +91,7 @@ theorem clampedSum_sensitivity {B : ℝ} (hB : 0 ≤ B) (f : α → ℝ) :
 
 /-- Sum of [0,1]-clamped values has sensitivity 1. -/
 theorem clampedSum01_sensitivity (f : α → ℝ) :
-    HasL1Sensitivity ListAddRemove (clampedSum f 0 1) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (clampedSum f 0 1) (↑(1 : ℝ≥0)) := by
   simp only [NNReal.coe_one]
   exact clampedSum_sensitivity (by norm_num) f
 
@@ -106,7 +106,7 @@ theorem clampedSum01_sensitivity (f : α → ℝ) :
 
     This is the first step of private mean estimation. -/
 theorem private_sum_pureDP (f : α → ℝ) {ε : NNReal} (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (clampedSum f 0 1) (1 : ℝ≥0) ε) ε :=
   laplaceMech_isPureDP hε (clampedSum01_sensitivity f)
 
@@ -122,7 +122,7 @@ theorem private_sum_pureDP (f : α → ℝ) {ε : NNReal} (hε : ε ≠ 0) :
     This is the canonical private mean estimation algorithm from
     Dwork & Roth (2014), Section 3.5.2. -/
 theorem private_mean_pureDP (f : α → ℝ) (n : ℕ) (_hn : (n : ℝ) ≠ 0) {ε : NNReal} (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (fun (d : List α) =>
         (laplaceMech (clampedSum f 0 1) (1 : ℝ≥0) ε d).map
           (measurable_const_mul (n : ℝ)⁻¹).aemeasurable)
@@ -139,7 +139,7 @@ theorem private_mean_pureDP (f : α → ℝ) (n : ℕ) (_hn : (n : ℝ) ≠ 0) {
     is B/ε, giving ε-DP. -/
 theorem private_sum_general {B : NNReal} (_hB : B ≠ 0) (f : α → ℝ)
     {ε : NNReal} (hε : ε ≠ 0) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (clampedSum f 0 (↑B)) B ε) ε := by
   apply laplaceMech_isPureDP hε
   exact clampedSum_sensitivity (NNReal.coe_nonneg B) f

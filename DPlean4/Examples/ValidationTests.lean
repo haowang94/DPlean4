@@ -55,7 +55,7 @@ variable {α : Type*}
 private def countQ (l : List α) : ℝ := (l.length : ℝ)
 
 private theorem countQ_sens :
-    HasL1Sensitivity ListAddRemove (countQ (α := α)) (1 : ℝ≥0) := by
+    HasL1Sensitivity ListHeadAddRemove (countQ (α := α)) (1 : ℝ≥0) := by
   intro l₁ l₂ hadj; simp only [countQ, NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
@@ -66,7 +66,7 @@ private theorem countQ_sens :
 -- ============================================================================
 
 theorem test_laplace_pureDP :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0)) (1 : ℝ≥0) :=
   laplaceMech_isPureDP (by norm_num) countQ_sens
 
@@ -75,16 +75,16 @@ theorem test_laplace_pureDP :
 -- ============================================================================
 
 theorem test_pure_to_approx (δ : NNReal) :
-    IsApproxDP ListAddRemove
+    IsApproxDP ListHeadAddRemove
       (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0)) (1 : ℝ≥0) δ :=
-  isPureDP_to_isApproxDP δ test_laplace_pureDP
+  isApproxDP_of_isPureDP δ test_laplace_pureDP
 
 -- ============================================================================
 -- Test 3: DP monotonicity (1-DP → 2-DP)
 -- ============================================================================
 
 theorem test_dp_monotone :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0)) (2 : ℝ≥0) :=
   isPureDP_mono test_laplace_pureDP (by norm_num)
 
@@ -93,7 +93,7 @@ theorem test_dp_monotone :
 -- ============================================================================
 
 theorem test_composition :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       ((laplaceMech (D := List α) countQ 1 (1 : ℝ≥0)).prod
        (laplaceMech (D := List α) countQ 1 (2 : ℝ≥0)))
       ((1 : ℝ≥0) + (2 : ℝ≥0)) :=
@@ -105,7 +105,7 @@ theorem test_composition :
 -- ============================================================================
 
 theorem test_postprocessing :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (fun d => (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0) d).map
         (measurable_const : Measurable (fun _ : ℝ => (0 : ℤ))).aemeasurable)
       (1 : ℝ≥0) :=
@@ -116,60 +116,43 @@ theorem test_postprocessing :
 -- ============================================================================
 
 theorem test_gaussian_zcdp :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       (gaussianMech (D := List α) countQ (2 : ℝ≥0))
       ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) :=
-  gaussianMech_isZCDP (by norm_num) countQ_sens
+  gaussianMech_isZCDP (by norm_num) countQ_sens.toL2
 
 -- ============================================================================
 -- Test 7: zCDP composition (linear budget)
 -- ============================================================================
 
-private theorem gaussian_ac {v : ℝ≥0} (hv : v ≠ 0) :
-    ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ →
-      (gaussianMech countQ v d₁).toMeasure ≪ (gaussianMech countQ v d₂).toMeasure := by
-  intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-  exact (gaussianReal_absolutelyContinuous _ hv).trans
-    (gaussianReal_absolutelyContinuous' _ hv)
-
 theorem test_zcdp_composition :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       ((gaussianMech (D := List α) countQ (2 : ℝ≥0)).prod
        (gaussianMech (D := List α) countQ (2 : ℝ≥0)))
       ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) :=
   isZCDP_prod test_gaussian_zcdp test_gaussian_zcdp
-    (gaussian_ac (by norm_num)) (gaussian_ac (by norm_num))
 
 -- ============================================================================
 -- Test 8: zCDP → (ε,δ)-DP conversion
 -- ============================================================================
 
-private theorem gaussian_fin (hv : (v : ℝ≥0) ≠ 0) :
-    ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ → ∀ a : ℝ, 1 < a →
-      renyiMoment a (gaussianMech countQ v d₁).toMeasure
-        (gaussianMech countQ v d₂).toMeasure ≠ ⊤ := by
-  intro d₁ d₂ _ a ha; simp only [gaussianMech_toMeasure]
-  rw [renyiMoment_gaussianReal_same_var hv ha]
-  exact ENNReal.ofReal_ne_top
-
 theorem test_zcdp_to_approx {δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1) :
-    ∃ ε : NNReal, IsApproxDP ListAddRemove
+    ∃ ε : NNReal, IsApproxDP ListHeadAddRemove
       (gaussianMech (D := List α) countQ (2 : ℝ≥0)) ε δ :=
-  isZCDP_to_isApproxDP' test_gaussian_zcdp (by positivity)
-    (gaussian_ac (by norm_num)) (gaussian_fin (by norm_num)) hδ hδ1
+  isApproxDP_of_isZCDP' test_gaussian_zcdp (by positivity) hδ hδ1
 
 -- ============================================================================
 -- Test 9: Pure DP → zCDP conversion
 -- ============================================================================
 
 theorem test_pure_to_zcdp
-    (hac : ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ →
+    (hac : ∀ d₁ d₂ : List α, ListHeadAddRemove d₁ d₂ →
       (laplaceMech countQ 1 (1 : ℝ≥0) d₁).toMeasure ≪
       (laplaceMech countQ 1 (1 : ℝ≥0) d₂).toMeasure)
-    (hfin : ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ → ∀ a : ℝ, 1 < a →
+    (hfin : ∀ d₁ d₂ : List α, ListHeadAddRemove d₁ d₂ → ∀ a : ℝ, 1 < a →
       renyiMoment a (laplaceMech countQ 1 (1 : ℝ≥0) d₁).toMeasure
         (laplaceMech countQ 1 (1 : ℝ≥0) d₂).toMeasure ≠ ⊤) :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0)) (1 : ℝ≥0) :=
   isZCDP_of_isPureDP test_laplace_pureDP hac hfin
 
@@ -178,7 +161,7 @@ theorem test_pure_to_zcdp
 -- ============================================================================
 
 theorem test_rdp {a : ℝ} (ha : 1 < a) :
-    IsRenyiDP ListAddRemove
+    IsRenyiDP ListHeadAddRemove
       (gaussianMech (D := List α) countQ (2 : ℝ≥0))
       a
       ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) * a) :=
@@ -223,10 +206,10 @@ theorem test_subsample_one : subsampleEpsilon 1 (1 : NNReal) = 1 :=
 -- ============================================================================
 
 theorem test_group_privacy_2hop :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0)) (1 : ℝ≥0) →
     ∀ d₁ d₂ d₃ : List α,
-      ListAddRemove d₁ d₂ → ListAddRemove d₂ d₃ →
+      ListHeadAddRemove d₁ d₂ → ListHeadAddRemove d₂ d₃ →
       PureMeasureClose ((1 : ℝ≥0) + (1 : ℝ≥0))
         (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0) d₁)
         (laplaceMech (D := List α) countQ 1 (1 : ℝ≥0) d₃) := by
@@ -240,7 +223,7 @@ theorem test_group_privacy_2hop :
 private def doubleCount (l : List α) : ℝ := 2 * countQ l
 
 private theorem doubleCount_sens :
-    HasL1Sensitivity ListAddRemove (doubleCount (α := α)) (2 : ℝ≥0) := by
+    HasL1Sensitivity ListHeadAddRemove (doubleCount (α := α)) (2 : ℝ≥0) := by
   intro l₁ l₂ hadj
   simp only [doubleCount, NNReal.coe_ofNat]
   have h := countQ_sens (α := α) l₁ l₂ hadj
@@ -251,12 +234,12 @@ private theorem doubleCount_sens :
     _ = 2 := by ring
 
 theorem test_higher_sensitivity_more_noise :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (laplaceMech (D := List α) doubleCount 2 (1 : ℝ≥0)) (1 : ℝ≥0) :=
   laplaceMech_isPureDP (by norm_num) doubleCount_sens
 
 -- ============================================================================
--- Test 18: Parallel composition (disjoint data → max instead of sum)
+-- Test 17: Parallel composition (disjoint data → max instead of sum)
 -- ============================================================================
 
 theorem test_parallel_better_than_sequential :
@@ -265,7 +248,7 @@ theorem test_parallel_better_than_sequential :
   exact max_le (le_add_right le_rfl) (le_add_left le_rfl)
 
 -- ============================================================================
--- Test 19: Mechanism.piCopy definition works
+-- Test 18: Mechanism.piCopy definition works
 -- ============================================================================
 
 theorem test_piCopy_definition :
@@ -275,30 +258,16 @@ theorem test_piCopy_definition :
   intro d; exact Mechanism.piCopy_toMeasure 5 _ d
 
 -- ============================================================================
--- Test 20: Full pipeline - Gaussian → zCDP → compose → (ε,δ)-DP
+-- Test 19: Full pipeline - Gaussian → zCDP → compose → (ε,δ)-DP
 -- ============================================================================
 
 theorem test_full_gaussian_pipeline {δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1) :
-    ∃ ε : NNReal, IsApproxDP ListAddRemove
+    ∃ ε : NNReal, IsApproxDP ListHeadAddRemove
       ((gaussianMech (D := List α) countQ (2 : ℝ≥0)).prod
-       (gaussianMech (D := List α) countQ (2 : ℝ≥0))) ε δ := by
-  have hv : (2 : ℝ≥0) ≠ 0 := by norm_num
-  exact isZCDP_to_isApproxDP'
-    (isZCDP_prod test_gaussian_zcdp test_gaussian_zcdp
-      (gaussian_ac hv) (gaussian_ac hv))
-    (by positivity)
-    (fun d₁ d₂ hadj => by
-      simp only [Mechanism.prod_toMeasure]
-      exact Measure.AbsolutelyContinuous.prod
-        (gaussian_ac hv d₁ d₂ hadj) (gaussian_ac hv d₁ d₂ hadj))
-    (fun d₁ d₂ hadj a ha => by
-      simp only [Mechanism.prod_toMeasure]
-      rw [renyiMoment_prod (gaussian_ac hv d₁ d₂ hadj) (gaussian_ac hv d₁ d₂ hadj)
-        (by linarith : (0 : ℝ) ≤ a)]
-      exact ENNReal.mul_ne_top
-        (gaussian_fin hv d₁ d₂ hadj a ha)
-        (gaussian_fin hv d₁ d₂ hadj a ha))
-    hδ hδ1
+       (gaussianMech (D := List α) countQ (2 : ℝ≥0))) ε δ :=
+  isApproxDP_of_isZCDP'
+    (isZCDP_prod test_gaussian_zcdp test_gaussian_zcdp)
+    (by positivity) hδ hδ1
 
 end DPlean4.Examples.Validation
 

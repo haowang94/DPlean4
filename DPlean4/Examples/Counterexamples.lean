@@ -5,6 +5,7 @@ Authors: DPlean4 Contributors
 -/
 
 import DPlean4.Privacy.Approximate
+import DPlean4.Privacy.RenyiDP
 import DPlean4.Distribution.Laplace
 
 /-!
@@ -62,6 +63,25 @@ theorem identityMech_not_pureDP (ε : NNReal) :
   have h3 := h true false trivial {true} (measurableSet_singleton true)
   rw [h1, h2] at h3
   simp at h3
+
+/-- A deterministic identity release cannot satisfy finite RDP. In particular,
+    the bundled absolute-continuity obligation rejects the singular Dirac pair. -/
+theorem identityMech_not_renyiDP (α ε : ℝ) :
+    ¬ IsRenyiDP AllAdj identityMech α ε := by
+  intro h
+  have hac := h.ac true false trivial
+  have hzero : (identityMech false).toMeasure {true} = 0 := by simp [identityMech]
+  have hone : (identityMech true).toMeasure {true} = 1 := by simp [identityMech]
+  have := hac hzero
+  rw [hone] at this
+  exact one_ne_zero this
+
+/-- Orders at or below one are rejected by the RDP interface. -/
+theorem renyiDP_order_one_rejected {D O : Type*} [MeasurableSpace O]
+    (adj : D → D → Prop) (M : Mechanism D O) (ε : ℝ) :
+    ¬ IsRenyiDP adj M 1 ε := by
+  intro h
+  linarith [h.order]
 
 /-- **The identity mechanism is not (ε,δ)-DP for any ε and δ < 1.**
 

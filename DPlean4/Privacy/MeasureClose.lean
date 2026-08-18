@@ -41,7 +41,6 @@ equivalent characterizations *after* this event-based API works.
 
 * `ε δ : NNReal` - non-negative reals, coerced to `ENNReal` in inequalities
 * Do NOT build `δ ≤ 1` into the core relation - remains meaningful for all δ ≥ 0
-* Separate `ValidDPParams` predicate for user-facing guarantees
 
 ### One-way vs symmetric
 
@@ -102,11 +101,5 @@ theorem pureMeasureClose_to_measureClose {ε : NNReal} (δ : NNReal) {μ ν : Pr
       ≤ ENNReal.ofReal (Real.exp ε) * ν.toMeasure s + (0 : ENNReal) := h s hs
     _ = ENNReal.ofReal (Real.exp ε) * ν.toMeasure s := by simp
     _ ≤ ENNReal.ofReal (Real.exp ε) * ν.toMeasure s + (δ : ENNReal) := le_self_add
-
-/-- A constant mechanism (always returns the same measure) is (0,0)-close to itself
-applied to any two inputs. -/
-theorem constantMeasure_close (μ : ProbabilityMeasure O) :
-    μ ≤[0, 0] μ :=
-  measureClose_refl μ
 
 end DPlean4

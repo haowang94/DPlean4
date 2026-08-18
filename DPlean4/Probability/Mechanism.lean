@@ -28,8 +28,8 @@ A `Kernel` requires both input and output to be measurable spaces, but databases
 `∀ x x', Adjacent x x' → ...`. Using `D → ProbabilityMeasure O` avoids forcing databases
 into an artificial measurable space.
 
-For adaptive composition (where a second mechanism depends measurably on the first's output),
-we provide kernel-facing utilities in `KernelBridge.lean`. That layer requires explicit
+Adaptive composition (where a second mechanism depends measurably on the first's output)
+is not provided. A future kernel-facing layer would require explicit
 measurability of the continuation.
 
 This design aligns with the plan's principle: prototype both representations, select the

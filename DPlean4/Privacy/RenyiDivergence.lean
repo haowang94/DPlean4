@@ -45,8 +45,10 @@ variable {Ω : Type*} [MeasurableSpace Ω]
 noncomputable def renyiMoment (α : ℝ) (μ ν : Measure Ω) : ℝ≥0∞ :=
   ∫⁻ x, (μ.rnDeriv ν x) ^ α ∂ν
 
-/-- The Rényi divergence of order α: `D_α(μ‖ν) = 1/(α-1) · log(∫⁻ (dμ/dν)^α dν)`.
-    For α ≤ 1, returns 0 (the definition is only meaningful for α > 1 in the zCDP context). -/
+/-- Real-valued Rényi-divergence formula. This projection is mathematically
+    meaningful only with `1 < α`, `μ ≪ ν`, and a finite Rényi moment.
+    Privacy predicates bundle those obligations; callers handling arbitrary
+    measures should use `renyiMoment` in `ℝ≥0∞` instead. -/
 noncomputable def renyiDivergence (α : ℝ) (μ ν : Measure Ω) : ℝ :=
   (α - 1)⁻¹ * Real.log (renyiMoment α μ ν).toReal
 
@@ -339,5 +341,118 @@ theorem renyiMoment_prod {μ₁ ν₁ : Measure Ω₁} {μ₂ ν₂ : Measure Ω
     ((Measure.measurable_rnDeriv μ₂ ν₂).pow_const α |>.aemeasurable)
 
 end Product
+
+-- ============================================================================
+-- Pi (Finite Product) Measures: Rényi Moment Multiplicativity
+-- ============================================================================
+
+section PiMeasure
+
+open Finset
+
+/-- Rényi moment is preserved under measurable equivalences.
+    If `e : Ω₁ ≃ᵐ Ω₂` and `μ₂ = μ₁.map e`, `ν₂ = ν₁.map e`, then
+    `renyiMoment α μ₂ ν₂ = renyiMoment α μ₁ ν₁`. -/
+theorem renyiMoment_map_measurableEquiv {Ω₁ Ω₂ : Type*}
+    [MeasurableSpace Ω₁] [MeasurableSpace Ω₂]
+    {μ ν : Measure Ω₁} [SigmaFinite μ] [SigmaFinite ν]
+    (e : Ω₁ ≃ᵐ Ω₂) {α : ℝ} (hα : 0 ≤ α) :
+    renyiMoment α (μ.map e) (ν.map e) = renyiMoment α μ ν := by
+  simp only [renyiMoment]
+  rw [lintegral_map_equiv _ e]
+  apply lintegral_congr_ae
+  have h_emb := e.measurableEmbedding
+  filter_upwards [h_emb.rnDeriv_map μ ν] with x hx
+  exact congr_arg (· ^ α) hx
+
+private theorem absolutelyContinuous_pi_fin {n : ℕ}
+    {Ω : Fin n → Type*} [∀ i, MeasurableSpace (Ω i)]
+    {μ ν : ∀ i, Measure (Ω i)}
+    [∀ i, SigmaFinite (μ i)] [∀ i, SigmaFinite (ν i)]
+    (hac : ∀ i, μ i ≪ ν i) :
+    Measure.pi μ ≪ Measure.pi ν := by
+  induction n with
+  | zero => rw [Measure.pi_of_empty μ, Measure.pi_of_empty ν]
+  | succ n ih =>
+    set e := MeasurableEquiv.piFinSuccAbove Ω 0
+    have hmp_μ := (measurePreserving_piFinSuccAbove μ 0).map_eq
+    have hmp_ν := (measurePreserving_piFinSuccAbove ν 0).map_eq
+    have h_tail := ih (fun j => hac (Fin.succAbove 0 j))
+    have h_prod := (hac 0).prod h_tail
+    rw [← hmp_μ, ← hmp_ν] at h_prod
+    have h2 := e.symm.measurableEmbedding.absolutelyContinuous_map h_prod
+    rwa [Measure.map_map e.symm.measurable e.measurable,
+         e.symm_comp_self, Measure.map_id,
+         Measure.map_map e.symm.measurable e.measurable,
+         e.symm_comp_self, Measure.map_id] at h2
+
+/-- Absolute continuity for pi measures: if each component measure is
+    absolutely continuous, so is the product measure. -/
+theorem absolutelyContinuous_pi {ι : Type*} [Fintype ι]
+    {Ω : ι → Type*} [∀ i, MeasurableSpace (Ω i)]
+    {μ ν : ∀ i, Measure (Ω i)}
+    [∀ i, SigmaFinite (μ i)] [∀ i, SigmaFinite (ν i)]
+    (hac : ∀ i, μ i ≪ ν i) :
+    Measure.pi μ ≪ Measure.pi ν := by
+  set f := (Fintype.equivFin ι).symm
+  set e := MeasurableEquiv.piCongrLeft Ω f
+  have h_fin := absolutelyContinuous_pi_fin (fun j => hac (f j))
+  have h_map := e.measurableEmbedding.absolutelyContinuous_map h_fin
+  rwa [(measurePreserving_piCongrLeft μ f).map_eq,
+       (measurePreserving_piCongrLeft ν f).map_eq] at h_map
+
+/-- Rényi moment multiplicativity for `Fin n`-indexed pi measures.
+    `renyiMoment α (Measure.pi μ) (Measure.pi ν) = ∏ i, renyiMoment α (μ i) (ν i)` -/
+private theorem renyiMoment_pi_fin {n : ℕ}
+    {Ω : Fin n → Type*} [∀ i, MeasurableSpace (Ω i)]
+    {μ ν : ∀ i, Measure (Ω i)}
+    [∀ i, SigmaFinite (μ i)] [∀ i, SigmaFinite (ν i)]
+    (hac : ∀ i, μ i ≪ ν i) {α : ℝ} (hα : 0 ≤ α) :
+    renyiMoment α (Measure.pi μ) (Measure.pi ν) =
+    ∏ i : Fin n, renyiMoment α (μ i) (ν i) := by
+  induction n with
+  | zero =>
+    simp only [univ_eq_empty, prod_empty]
+    rw [Measure.pi_of_empty μ, Measure.pi_of_empty ν]
+    simp only [renyiMoment]
+    have h_ae : (fun y => ((Measure.dirac (isEmptyElim : ∀ a : Fin 0, Ω a)).rnDeriv
+        (Measure.dirac isEmptyElim) y) ^ α) =ᵐ[Measure.dirac isEmptyElim] fun _ => 1 := by
+      filter_upwards [Measure.rnDeriv_self (Measure.dirac (isEmptyElim : ∀ a : Fin 0, Ω a))]
+        with y hy
+      simp [hy, one_rpow]
+    rw [lintegral_congr_ae h_ae, lintegral_one, measure_univ]
+  | succ n ih =>
+    set e := MeasurableEquiv.piFinSuccAbove Ω 0
+    have h_tail_ac := absolutelyContinuous_pi_fin (fun j => hac (Fin.succAbove 0 j))
+    have h1 : renyiMoment α (Measure.pi μ) (Measure.pi ν) =
+        renyiMoment α ((Measure.pi μ).map e) ((Measure.pi ν).map e) :=
+      (renyiMoment_map_measurableEquiv e hα).symm
+    rw [h1, (measurePreserving_piFinSuccAbove μ 0).map_eq,
+        (measurePreserving_piFinSuccAbove ν 0).map_eq,
+        renyiMoment_prod (hac 0) h_tail_ac hα,
+        ih (fun j => hac (Fin.succAbove 0 j))]
+    exact (Fin.prod_univ_succAbove (fun i => renyiMoment α (μ i) (ν i)) 0).symm
+
+/-- **Rényi moment multiplicativity for finite product measures.**
+    For independent pairs (μ i, ν i), the Rényi moment of the joint
+    distribution equals the product of the marginal Rényi moments. -/
+theorem renyiMoment_pi {ι : Type*} [Fintype ι]
+    {Ω : ι → Type*} [∀ i, MeasurableSpace (Ω i)]
+    {μ ν : ∀ i, Measure (Ω i)}
+    [∀ i, SigmaFinite (μ i)] [∀ i, SigmaFinite (ν i)]
+    (hac : ∀ i, μ i ≪ ν i) {α : ℝ} (hα : 0 ≤ α) :
+    renyiMoment α (Measure.pi μ) (Measure.pi ν) =
+    ∏ i, renyiMoment α (μ i) (ν i) := by
+  set f := (Fintype.equivFin ι).symm
+  set e := MeasurableEquiv.piCongrLeft Ω f
+  have hmp_μ := (measurePreserving_piCongrLeft μ f).map_eq
+  have hmp_ν := (measurePreserving_piCongrLeft ν f).map_eq
+  have h_eq : renyiMoment α (Measure.pi μ) (Measure.pi ν) =
+      renyiMoment α (Measure.pi (fun j => μ (f j))) (Measure.pi (fun j => ν (f j))) := by
+    rw [← hmp_μ, ← hmp_ν, ← renyiMoment_map_measurableEquiv e hα]
+  rw [h_eq, renyiMoment_pi_fin (fun j => hac (f j)) hα]
+  exact f.prod_comp (fun i => renyiMoment α (μ i) (ν i))
+
+end PiMeasure
 
 end DPlean4

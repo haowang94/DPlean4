@@ -6,19 +6,18 @@ Authors: DPlean4 Contributors
 
 import DPlean4.Mechanism.Laplace
 import DPlean4.Privacy.Subsampling
-import DPlean4.Basic.Adjacency
 
 /-!
-# Subsampling Amplification Examples
+# Directed Mixture-Bound Examples
 
-This file demonstrates privacy amplification by subsampling (Kasiviswanathan
-et al. 2011, Balle et al. 2018): if a mechanism is ε-DP, running it on a
-random q-fraction of the data gives ln(1 + q·(exp(ε)-1))-DP.
+This file demonstrates directed measure-mixture inequalities commonly used
+inside subsampling proofs. It defines no database sampler and proves no
+two-direction mechanism-level privacy theorem.
 
 ## Examples
 
-1. `subsample_amplifies`: for any ε-DP mechanism, subsampling at rate q gives
-   amplified privacy ln(1 + q·(exp(ε)-1))
+1. `subsample_amplifies`: a directed mixture inequality with parameter
+   ln(1 + q·(exp(ε)-1))
 2. `subsample_rate_zero`: subsampling at rate 0 gives perfect privacy (ε'=0)
 3. `subsample_rate_one`: subsampling at rate 1 gives no amplification (ε'=ε)
 4. `subsample_monotone_rate`: lower subsampling rate → better privacy
@@ -26,9 +25,8 @@ random q-fraction of the data gives ln(1 + q·(exp(ε)-1))-DP.
 
 ## Key Insight
 
-For small ε, ln(1 + q·(exp(ε)-1)) ≈ q·ε, so privacy cost scales linearly
-with the subsampling rate. This is the foundation of DP-SGD's privacy
-accounting: each minibatch is a Poisson subsample with rate q = batch_size/n.
+For small ε, ln(1 + q·(exp(ε)-1)) ≈ q·ε. Connecting this algebraic
+bound to a sampler requires additional theorems not present here.
 
 ## References
 
@@ -44,7 +42,7 @@ namespace DPlean4.Examples
 
 open DPlean4
 open MeasureTheory
-open scoped NNReal
+open scoped NNReal ENNReal
 
 variable {O : Type*} [MeasurableSpace O]
 
@@ -76,8 +74,8 @@ theorem subsample_rate_zero (ε : NNReal) :
 /-- **Full subsampling rate = no amplification**: if we include all data (q=1),
     the mixture is just μ, so we get the original ε. -/
 theorem subsample_rate_one (ε : NNReal) :
-    subsampleEpsilon 1 ε = 0 + ε := by
-  rw [zero_add]; exact subsampleEpsilon_one ε
+    subsampleEpsilon 1 ε = ε :=
+  subsampleEpsilon_one ε
 
 -- ============================================================================
 -- Monotonicity
@@ -110,12 +108,11 @@ theorem subsample_monotone_eps {ε₁ ε₂ : NNReal} (hε : ε₁ ≤ ε₂) (q
     Gaussian mechanism and uses RDP accounting for tighter composition. -/
 theorem dpsgd_style_subsampling
     {μ ν : ProbabilityMeasure O}
-    (h : PureMeasureClose (1 : NNReal) μ ν) :
-    PureMeasureClose (subsampleEpsilon (⟨1/10, by norm_num⟩ : NNReal) 1)
-      (mixtureMeasure ⟨1/10, by norm_num⟩ (by norm_num : (⟨1/10, by norm_num⟩ : NNReal) ≤ 1)
-        μ ν)
-      ν :=
-  pureMeasureClose_subsample h (by norm_num)
+    (h : PureMeasureClose (1 : NNReal) μ ν)
+    {q : NNReal} (hq : q ≤ 1) :
+    PureMeasureClose (subsampleEpsilon q 1)
+      (mixtureMeasure q hq μ ν) ν :=
+  pureMeasureClose_subsample h hq
 
 /-- **Approximate DP subsampling bound**: if μ ≤[ε,δ] ν, the q-mixture
     satisfies q·μ(S) + (1-q)·ν(S) ≤ (q·exp(ε)+(1-q))·ν(S) + q·δ.

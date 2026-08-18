@@ -9,10 +9,11 @@ import DPlean4.Privacy.ZCDP
 import DPlean4.Basic.Adjacency
 
 /-!
-# DP-SGD: Differentially Private Stochastic Gradient Descent
+# Independent Scalar Gaussian Releases Inspired by DP-SGD
 
-This file demonstrates the privacy analysis of DP-SGD (Abadi et al., 2016),
-the most widely-used differentially private algorithm for machine learning.
+This file demonstrates fixed, independent releases of scalar clipped sums.
+It is an accounting illustration inspired by DP-SGD, not a formalization of
+adaptive optimization, minibatch sampling, or a training algorithm.
 
 ## Algorithm (simplified, one step)
 
@@ -67,7 +68,7 @@ def clippedSum (f : α → ℝ) (C : ℝ) (l : List α) : ℝ :=
 /-- Clipped sum has L1 sensitivity C under add/remove adjacency.
     Adding one record changes the sum by at most C (the clipping bound). -/
 theorem clippedSum_sensitivity (f : α → ℝ) {C : ℝ} (hC : 0 ≤ C) :
-    HasL1Sensitivity ListAddRemove (clippedSum f C) C := by
+    HasL1Sensitivity ListHeadAddRemove (clippedSum f C) C := by
   intro l₁ l₂ hadj
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]
@@ -86,7 +87,7 @@ theorem clippedSum_sensitivity (f : α → ℝ) {C : ℝ} (hC : 0 ≤ C) :
 -- DP-SGD: One Step
 -- ============================================================================
 
-/-- One step of DP-SGD: compute clipped gradient sum, add Gaussian noise.
+/-- One fixed scalar release: compute a clipped gradient sum and add Gaussian noise.
     Parameters:
     - f : α → ℝ — per-example gradient function (scalar for simplicity)
     - C : ℝ≥0 — clipping bound
@@ -94,37 +95,26 @@ theorem clippedSum_sensitivity (f : α → ℝ) {C : ℝ} (hC : 0 ≤ C) :
 def dpsgdStep (f : α → ℝ) (C v : ℝ≥0) : Mechanism (List α) ℝ :=
   gaussianMech (clippedSum f C) v
 
-/-- **One step of DP-SGD is ρ-zCDP** with ρ = C²/(2v).
+/-- **One scalar Gaussian release is ρ-zCDP** with ρ = C²/(2v).
 
     This follows from:
     1. Clipped sum has sensitivity C (per `clippedSum_sensitivity`)
     2. Gaussian mechanism with sensitivity Δ and variance v is Δ²/(2v)-zCDP -/
 theorem dpsgdStep_isZCDP (f : α → ℝ) {C v : ℝ≥0} (hv : v ≠ 0) :
-    IsZCDP ListAddRemove (dpsgdStep f C v)
+    IsZCDP ListHeadAddRemove (dpsgdStep f C v)
       (C ^ 2 / (2 * v)) :=
-  gaussianMech_isZCDP hv (clippedSum_sensitivity f C.2)
-
-/-- Absolute continuity for dpsgdStep (Gaussian measures with same variance). -/
-private theorem dpsgdStep_ac (f : α → ℝ) {C v : ℝ≥0} (hv : v ≠ 0) :
-    ∀ d₁ d₂ : List α, ListAddRemove d₁ d₂ →
-      (dpsgdStep f C v d₁).toMeasure ≪ (dpsgdStep f C v d₂).toMeasure := by
-  intro d₁ d₂ _
-  simp only [dpsgdStep, gaussianMech_toMeasure]
-  exact (gaussianReal_absolutelyContinuous _ hv).trans
-    (gaussianReal_absolutelyContinuous' _ hv)
+  gaussianMech_isZCDP hv (clippedSum_sensitivity f C.2).toL2
 
 -- ============================================================================
 -- DP-SGD: Composition over k steps
 -- ============================================================================
 
-/-- Two steps of DP-SGD composed: the product of two independent noisy gradient
-    steps is (2ρ)-zCDP. This demonstrates zCDP's clean linear composition. -/
+/-- The product of two fixed independent noisy scalar releases is (2ρ)-zCDP. -/
 theorem dpsgd_two_steps_zCDP (f₁ f₂ : α → ℝ) {C v : ℝ≥0} (hv : v ≠ 0) :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       ((dpsgdStep f₁ C v).prod (dpsgdStep f₂ C v))
       (C ^ 2 / (2 * v) + C ^ 2 / (2 * v)) :=
   isZCDP_prod (dpsgdStep_isZCDP f₁ hv) (dpsgdStep_isZCDP f₂ hv)
-    (dpsgdStep_ac f₁ hv) (dpsgdStep_ac f₂ hv)
 
 -- ============================================================================
 -- Concrete example: DP-SGD with specific parameters
@@ -133,9 +123,9 @@ theorem dpsgd_two_steps_zCDP (f₁ f₂ : α → ℝ) {C v : ℝ≥0} (hv : v �
 /-- Concrete DP-SGD example: clipping bound C=1, noise variance v=2.
 
     ρ = C²/(2v) = 1/4 per step, so 2 steps → 2ρ = 1/2.
-    This demonstrates the full pipeline for DP-SGD privacy accounting. -/
+    This demonstrates the fixed independent-release accounting pipeline. -/
 theorem dpsgd_concrete_two_steps (f₁ f₂ : α → ℝ) :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       ((dpsgdStep f₁ (1 : ℝ≥0) (2 : ℝ≥0)).prod (dpsgdStep f₂ (1 : ℝ≥0) (2 : ℝ≥0)))
       ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) :=
   dpsgd_two_steps_zCDP f₁ f₂ (by norm_num)
@@ -144,14 +134,10 @@ theorem dpsgd_concrete_two_steps (f₁ f₂ : α → ℝ) :
     gradient preserves zCDP, since postprocessing can only decrease privacy loss. -/
 theorem dpsgd_postprocess (f : α → ℝ) {C v : ℝ≥0} (hv : v ≠ 0)
     {η : ℝ} (hη : Measurable (fun x : ℝ => η * x)) :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       (fun d => ProbabilityMeasure.map (dpsgdStep f C v d) hη.aemeasurable)
       (C ^ 2 / (2 * v)) := by
-  apply isZCDP_postprocess (dpsgdStep_isZCDP f hv) hη (dpsgdStep_ac f hv)
-  intro d₁ d₂ _ α hα
-  simp only [dpsgdStep, gaussianMech_toMeasure]
-  rw [renyiMoment_gaussianReal_same_var hv hα]
-  exact ENNReal.ofReal_ne_top
+  exact isZCDP_postprocess (dpsgdStep_isZCDP f hv) hη
 
 end DPlean4.Examples
 

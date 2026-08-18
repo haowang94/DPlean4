@@ -24,11 +24,14 @@ open DPlean4
 
 section AdjacencyExamples
 
-/-- Example: [1,2,3] and [2,3] are adjacent via add/remove (remove head) -/
-example : ListAddRemove [1,2,3] [2,3] := .inl ⟨1, [2,3], rfl, rfl⟩
+/-- Head insertion is accepted. -/
+example : ListAddRemove [1,2,3] [2,3] := .inl ⟨[], [2,3], 1, rfl, rfl⟩
 
-/-- Example: [1,2,3] and [4,1,2,3] are adjacent via add/remove (add at head) -/
-example : ListAddRemove [1,2,3] [4,1,2,3] := .inr ⟨4, [1,2,3], rfl, rfl⟩
+/-- Middle insertion is accepted. -/
+example : ListAddRemove [1,2,3] [1,4,2,3] := .inr ⟨[1], [2,3], 4, rfl, rfl⟩
+
+/-- Tail insertion is accepted. -/
+example : ListAddRemove [1,2,3] [1,2,3,4] := .inr ⟨[1,2,3], [], 4, rfl, rfl⟩
 
 /-- Example: [1,2,3] and [1,5,3] are adjacent via replace (differ at index 1) -/
 example : ListReplace [1,2,3] [1,5,3] := by
@@ -55,11 +58,11 @@ def countQuery : List α → ℝ := fun l => (l.length : ℝ)
 /-- The counting query has L1 sensitivity 1 under ListAddRemove adjacency -/
 theorem countQuery_sensitivity : HasL1Sensitivity ListAddRemove (countQuery : List α → ℝ) 1 := by
   intro l₁ l₂ hadj
-  have hlen := listAddRemove_length_diff l₁ l₂ hadj
-  simp [countQuery]
-  obtain ⟨a, l, rfl, rfl⟩ | ⟨a, l, rfl, rfl⟩ := hadj
-  · simp [List.length_cons, Nat.cast_add, Nat.cast_one]
-  · simp [List.length_cons, Nat.cast_add, Nat.cast_one]
+  rcases listAddRemove_length_diff l₁ l₂ hadj with h | h
+  · simp only [countQuery, h, Nat.cast_add, Nat.cast_one, add_sub_cancel_left, abs_one]
+    norm_num
+  · simp only [countQuery, h, Nat.cast_add, Nat.cast_one]
+    rw [sub_add_cancel_left, abs_neg, abs_one]
 
 /-- A constant query has zero sensitivity (regardless of adjacency) -/
 example (c : ℝ) : HasL1Sensitivity ListAddRemove (fun (_ : List α) => c) 0 :=

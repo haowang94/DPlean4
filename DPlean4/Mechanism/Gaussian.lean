@@ -148,31 +148,39 @@ theorem renyiDivergence_gaussianReal_same_var {μ₁ μ₂ : ℝ} {v : ℝ≥0}
 
 /-- **The Gaussian mechanism satisfies ρ-zCDP** with ρ = Δ²/(2v).
 
-    Given a query with L1 sensitivity Δ (= L2 for scalar queries)
-    and Gaussian noise with variance v > 0, the mechanism satisfies
-    ρ-zCDP where ρ = Δ²/(2v).
+    Given a query with L2 sensitivity Δ and Gaussian noise with variance v > 0,
+    the mechanism satisfies ρ-zCDP where ρ = Δ²/(2v).
 
     Proof uses: D_α(N(q(d₁),v) ‖ N(q(d₂),v)) = α|q(d₁)-q(d₂)|²/(2v) ≤ α·Δ²/(2v). -/
 theorem gaussianMech_isZCDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ≥0} {v : ℝ≥0}
     (hv : v ≠ 0)
-    (hsens : HasL1Sensitivity adj q ↑Δ) :
-    IsZCDP adj (gaussianMech q v) (Δ ^ 2 / (2 * v)) := by
-  set ρ : ℝ≥0 := Δ ^ 2 / (2 * v)
-  intro d₁ d₂ hadj α hα
-  rw [gaussianMech_toMeasure, gaussianMech_toMeasure,
-      renyiDivergence_gaussianReal_same_var hv hα]
-  have hv_pos : (0 : ℝ) < ↑v := by positivity
-  have hα_pos : (0 : ℝ) < α := by linarith
-  have hsens_bound := hsens d₁ d₂ hadj
-  have hΔ_sq : (q d₁ - q d₂) ^ 2 ≤ (↑Δ : ℝ) ^ 2 := by
-    calc (q d₁ - q d₂) ^ 2 = |q d₁ - q d₂| ^ 2 := (sq_abs _).symm
-      _ ≤ (↑Δ : ℝ) ^ 2 := pow_le_pow_left₀ (abs_nonneg _) hsens_bound 2
-  have step1 : α * (q d₁ - q d₂) ^ 2 / (2 * ↑v) ≤ α * (↑Δ : ℝ) ^ 2 / (2 * ↑v) := by
-    gcongr
-  have hρ_val : (ρ : ℝ) = (↑Δ : ℝ) ^ 2 / (2 * (↑v : ℝ)) := by
-    change ((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) = _
-    simp only [NNReal.coe_div, NNReal.coe_pow, NNReal.coe_mul, NNReal.coe_ofNat]
-  linarith [show (ρ : ℝ) * α = α * (↑Δ : ℝ) ^ 2 / (2 * (↑v : ℝ)) by rw [hρ_val]; ring]
+    (hsens : HasL2Sensitivity adj q ↑Δ) :
+    IsZCDP adj (gaussianMech q v) (Δ ^ 2 / (2 * v)) where
+  ac d₁ d₂ _ := by
+    simp only [gaussianMech_toMeasure]
+    exact (gaussianReal_absolutelyContinuous _ hv).trans
+      (gaussianReal_absolutelyContinuous' _ hv)
+  fin d₁ d₂ _ α hα := by
+    simp only [gaussianMech_toMeasure]
+    rw [renyiMoment_gaussianReal_same_var hv hα]
+    exact ENNReal.ofReal_ne_top
+  bound d₁ d₂ hadj α hα := by
+    set ρ : ℝ≥0 := Δ ^ 2 / (2 * v)
+    rw [gaussianMech_toMeasure, gaussianMech_toMeasure,
+        renyiDivergence_gaussianReal_same_var hv hα]
+    have hv_pos : (0 : ℝ) < ↑v := by positivity
+    have hα_pos : (0 : ℝ) < α := by linarith
+    have hsens_bound := hsens d₁ d₂ hadj
+    rw [Real.norm_eq_abs] at hsens_bound
+    have hΔ_sq : (q d₁ - q d₂) ^ 2 ≤ (↑Δ : ℝ) ^ 2 := by
+      calc (q d₁ - q d₂) ^ 2 = |q d₁ - q d₂| ^ 2 := (sq_abs _).symm
+        _ ≤ (↑Δ : ℝ) ^ 2 := pow_le_pow_left₀ (abs_nonneg _) hsens_bound 2
+    have step1 : α * (q d₁ - q d₂) ^ 2 / (2 * ↑v) ≤ α * (↑Δ : ℝ) ^ 2 / (2 * ↑v) := by
+      gcongr
+    have hρ_val : (ρ : ℝ) = (↑Δ : ℝ) ^ 2 / (2 * (↑v : ℝ)) := by
+      change ((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) = _
+      simp only [NNReal.coe_div, NNReal.coe_pow, NNReal.coe_mul, NNReal.coe_ofNat]
+    linarith [show (ρ : ℝ) * α = α * (↑Δ : ℝ) ^ 2 / (2 * (↑v : ℝ)) by rw [hρ_val]; ring]
 
 -- ============================================================================
 -- Gaussian Mechanism is (ε,δ)-DP
@@ -180,7 +188,7 @@ theorem gaussianMech_isZCDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ�
 
 /-- **The Gaussian mechanism satisfies (ε,δ)-approximate DP.**
 
-    For a query with L1 sensitivity Δ, Gaussian noise variance v > 0,
+    For a query with L2 sensitivity Δ, Gaussian noise variance v > 0,
     and any δ ∈ (0,1), the mechanism is (ε,δ)-DP for
     ε ≥ Δ²/(2v) + 2√(Δ²/(2v) · log(1/δ)).
 
@@ -188,22 +196,12 @@ theorem gaussianMech_isZCDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ�
     then applying the zCDP → (ε,δ)-DP conversion. -/
 theorem gaussianMech_isApproxDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ≥0} {v : ℝ≥0}
     (hv : v ≠ 0) (hΔ : Δ ≠ 0)
-    (hsens : HasL1Sensitivity adj q ↑Δ)
+    (hsens : HasL2Sensitivity adj q ↑Δ)
     {ε δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1)
     (hε : (ε : ℝ) ≥ ((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) +
       2 * Real.sqrt (((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) * Real.log (1 / ↑δ))) :
-    IsApproxDP adj (gaussianMech q v) ε δ := by
-  apply isZCDP_to_isApproxDP (gaussianMech_isZCDP hv hsens)
-  · positivity
-  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-    exact (gaussianReal_absolutelyContinuous _ hv).trans
-      (gaussianReal_absolutelyContinuous' _ hv)
-  · intro d₁ d₂ _ α hα; simp only [gaussianMech_toMeasure]
-    rw [renyiMoment_gaussianReal_same_var hv hα]
-    exact ENNReal.ofReal_ne_top
-  · exact hδ
-  · exact hδ1
-  · exact hε
+    IsApproxDP adj (gaussianMech q v) ε δ :=
+  isApproxDP_of_isZCDP (gaussianMech_isZCDP hv hsens) (by positivity) hδ hδ1 hε
 
 -- ============================================================================
 -- Examples
@@ -215,15 +213,15 @@ variable {α : Type*}
 
 /-- The Gaussian mechanism with Δ=1, v=2 is (1/4)-zCDP for the counting query. -/
 theorem gaussian_count_zCDP :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0))
       ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) := by
   apply gaussianMech_isZCDP (by norm_num : (2 : ℝ≥0) ≠ 0)
-  intro l₁ l₂ hadj
-  simp only [NNReal.coe_one]
-  obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
-  · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
-  · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
+  exact HasL1Sensitivity.toL2 (fun l₁ l₂ hadj => by
+    simp only [NNReal.coe_one]
+    obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
+    · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
+    · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one])
 
 /-- **Gaussian composition via zCDP**: Two independent counting queries with
     Gaussian noise (v=2 each) compose to (1/2)-zCDP.
@@ -231,15 +229,11 @@ theorem gaussian_count_zCDP :
     This demonstrates the zCDP composition theorem (isZCDP_prod):
     (1/4)-zCDP + (1/4)-zCDP = (1/2)-zCDP. -/
 theorem gaussian_count_compose_zCDP :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       ((gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)).prod
        (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)))
-      ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) := by
-  have hv : (2 : ℝ≥0) ≠ 0 := by norm_num
-  apply isZCDP_prod gaussian_count_zCDP gaussian_count_zCDP <;>
-  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-    exact (gaussianReal_absolutelyContinuous _ hv).trans
-      (gaussianReal_absolutelyContinuous' _ hv)
+      ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) :=
+  isZCDP_prod gaussian_count_zCDP gaussian_count_zCDP
 
 end Examples
 

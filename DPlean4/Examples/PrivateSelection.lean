@@ -64,8 +64,8 @@ def modelScore {n : ℕ} (scores : Fin n → List α → ℝ) : List α → Fin 
     a count or average over the dataset), then the utility function for
     private selection has utility sensitivity Δ. -/
 theorem modelScore_sensitivity {n : ℕ} {scores : Fin n → List α → ℝ} {Δ : ℝ}
-    (hsens : ∀ i, HasL1Sensitivity ListAddRemove (scores i) Δ) :
-    HasUtilitySensitivity ListAddRemove (modelScore scores) Δ := by
+    (hsens : ∀ i, HasL1Sensitivity ListHeadAddRemove (scores i) Δ) :
+    HasUtilitySensitivity ListHeadAddRemove (modelScore scores) Δ := by
   intro d₁ d₂ hadj i
   exact hsens i d₁ d₂ hadj
 
@@ -86,8 +86,8 @@ def privateModelSelect {n : ℕ} [Nonempty (Fin n)] (scores : Fin n → List α 
 theorem privateModelSelect_isPureDP {n : ℕ} [Nonempty (Fin n)]
     {scores : Fin n → List α → ℝ}
     {Δ : ℝ} (hΔ : 0 < Δ) {ε : NNReal}
-    (hsens : ∀ i, HasL1Sensitivity ListAddRemove (scores i) Δ) :
-    IsPureDP ListAddRemove (privateModelSelect scores ε Δ) ε :=
+    (hsens : ∀ i, HasL1Sensitivity ListHeadAddRemove (scores i) Δ) :
+    IsPureDP ListHeadAddRemove (privateModelSelect scores ε Δ) ε :=
   reportNoisyMax_isPureDP hΔ hsens
 
 -- ============================================================================
@@ -103,19 +103,19 @@ private def score₃ (l : List ℕ) : ℝ := (l.countP (· ≤ 5) : ℝ)
 private def threeScores : Fin 3 → List ℕ → ℝ :=
   ![score₁, score₂, score₃]
 
-private theorem score₁_sens : HasL1Sensitivity ListAddRemove score₁ 1 := by
+private theorem score₁_sens : HasL1Sensitivity ListHeadAddRemove score₁ 1 := by
   intro l₁ l₂ hadj; simp only [score₁]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
   · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
 
-private theorem score₂_sens : HasL1Sensitivity ListAddRemove score₂ 1 := by
+private theorem score₂_sens : HasL1Sensitivity ListHeadAddRemove score₂ 1 := by
   intro l₁ l₂ hadj; simp only [score₂]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]; simp [List.countP_cons]; split <;> simp [Nat.cast_add, Nat.cast_one]
   · rw [h.1, h.2]; simp [List.countP_cons]; split <;> simp [Nat.cast_add, Nat.cast_one]
 
-private theorem score₃_sens : HasL1Sensitivity ListAddRemove score₃ 1 := by
+private theorem score₃_sens : HasL1Sensitivity ListHeadAddRemove score₃ 1 := by
   intro l₁ l₂ hadj; simp only [score₃]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]; simp [List.countP_cons]; split <;> simp
@@ -123,7 +123,7 @@ private theorem score₃_sens : HasL1Sensitivity ListAddRemove score₃ 1 := by
 
 /-- Each of the 3 scoring functions has sensitivity 1 under add/remove. -/
 private theorem threeScores_sensitivity :
-    ∀ i : Fin 3, HasL1Sensitivity ListAddRemove (threeScores i) 1 := by
+    ∀ i : Fin 3, HasL1Sensitivity ListHeadAddRemove (threeScores i) 1 := by
   intro i; fin_cases i
   · exact score₁_sens
   · exact score₂_sens
@@ -131,7 +131,7 @@ private theorem threeScores_sensitivity :
 
 /-- Selecting the best of 3 models is ε-DP with sensitivity Δ=1. -/
 theorem select_best_of_three_models (ε : NNReal) :
-    IsPureDP ListAddRemove
+    IsPureDP ListHeadAddRemove
       (privateModelSelect threeScores ε 1)
       ε :=
   privateModelSelect_isPureDP (by norm_num) threeScores_sensitivity

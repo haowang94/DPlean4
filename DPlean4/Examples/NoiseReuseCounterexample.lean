@@ -110,6 +110,10 @@ private lemma noiseReuse_d0_preimage :
              Set.mem_empty_iff_false, iff_false, not_lt]
   linarith
 
+private lemma noiseReuseMech_toMeasure (b : NNReal) (d : ℝ) :
+    (noiseReuseMech b d).toMeasure = Measure.map (noiseReuseMap d) (laplaceMeasure 0 b) := by
+  exact ProbabilityMeasure.toMeasure_map _ _
+
 -- ============================================================================
 -- Main Theorem
 -- ============================================================================
@@ -127,14 +131,12 @@ theorem noiseReuse_not_pureDP {b : NNReal} (hb : b ≠ 0) (ε : NNReal) :
   have h_dp := h 1 0 trivial discriminatingEvent hS
   -- M(0)(S) = 0: preimage is empty
   have h_d0_zero : (noiseReuseMech b 0).toMeasure discriminatingEvent = 0 := by
-    simp only [noiseReuseMech]
-    rw [ProbabilityMeasure.toMeasure_map,
+    rw [noiseReuseMech_toMeasure,
         Measure.map_apply (measurable_noiseReuseMap 0) hS,
-        noiseReuse_d0_preimage, Measure.empty']
+        noiseReuse_d0_preimage, measure_empty]
   -- M(1)(S) = 1: preimage is univ
   have h_d1_one : (noiseReuseMech b 1).toMeasure discriminatingEvent = 1 := by
-    simp only [noiseReuseMech]
-    rw [ProbabilityMeasure.toMeasure_map,
+    rw [noiseReuseMech_toMeasure,
         Measure.map_apply (measurable_noiseReuseMap 1) hS,
         noiseReuse_d1_preimage, measure_univ]
   rw [h_d0_zero, mul_zero, ENNReal.coe_zero, add_zero] at h_dp
@@ -153,13 +155,11 @@ theorem noiseReuse_not_approxDP {b : NNReal} (hb : b ≠ 0) (ε : NNReal)
   have hS := measurableSet_discriminatingEvent
   have h_dp := h 1 0 trivial discriminatingEvent hS
   have h_d0_zero : (noiseReuseMech b 0).toMeasure discriminatingEvent = 0 := by
-    simp only [noiseReuseMech]
-    rw [ProbabilityMeasure.toMeasure_map,
+    rw [noiseReuseMech_toMeasure,
         Measure.map_apply (measurable_noiseReuseMap 0) hS,
-        noiseReuse_d0_preimage, Measure.empty']
+        noiseReuse_d0_preimage, measure_empty]
   have h_d1_one : (noiseReuseMech b 1).toMeasure discriminatingEvent = 1 := by
-    simp only [noiseReuseMech]
-    rw [ProbabilityMeasure.toMeasure_map,
+    rw [noiseReuseMech_toMeasure,
         Measure.map_apply (measurable_noiseReuseMap 1) hS,
         noiseReuse_d1_preimage, measure_univ]
   rw [h_d0_zero, mul_zero, zero_add] at h_dp

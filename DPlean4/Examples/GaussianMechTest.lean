@@ -34,7 +34,7 @@ variable {α : Type*}
 -- ============================================================================
 
 private theorem countQuery_sens :
-    HasL1Sensitivity ListAddRemove (fun (l : List α) => (l.length : ℝ)) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (fun (l : List α) => (l.length : ℝ)) (↑(1 : ℝ≥0)) := by
   intro l₁ l₂ hadj
   simp only [NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj <;> rw [h.1, h.2] <;>
@@ -47,10 +47,10 @@ private theorem countQuery_sens :
 /-- Counting query + Gaussian noise (v=2) satisfies (1/4)-zCDP.
     ρ = Δ²/(2v) = 1²/(2·2) = 1/4. -/
 theorem gaussian_count_zcdp :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0))
       ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) :=
-  gaussianMech_isZCDP (by norm_num : (2 : ℝ≥0) ≠ 0) countQuery_sens
+  gaussianMech_isZCDP (by norm_num : (2 : ℝ≥0) ≠ 0) countQuery_sens.toL2
 
 -- ============================================================================
 -- Test 2: zCDP composition (two independent Gaussian queries)
@@ -59,15 +59,11 @@ theorem gaussian_count_zcdp :
 /-- Two independent count queries with Gaussian noise (v=2) compose to (1/2)-zCDP.
     Demonstrates the power of zCDP composition: ρ₁ + ρ₂ = 1/4 + 1/4 = 1/2. -/
 theorem gaussian_count_compose_zcdp :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       ((gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)).prod
        (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)))
-      ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) := by
-  have hv : (2 : ℝ≥0) ≠ 0 := by norm_num
-  apply isZCDP_prod (gaussian_count_zcdp (α := α)) (gaussian_count_zcdp (α := α)) <;>
-  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-    exact (gaussianReal_absolutelyContinuous _ hv).trans
-      (gaussianReal_absolutelyContinuous' _ hv)
+      ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) :=
+  isZCDP_prod (gaussian_count_zcdp (α := α)) (gaussian_count_zcdp (α := α))
 
 -- ============================================================================
 -- Test 3: zCDP → (ε,δ)-DP conversion (existential form)
@@ -76,18 +72,9 @@ theorem gaussian_count_compose_zcdp :
 /-- For any δ ∈ (0,1), there exists ε such that the Gaussian counting mechanism
     satisfies (ε,δ)-approximate DP. This is the zCDP → approx DP conversion. -/
 theorem gaussian_count_exists_approxDP {δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1) :
-    ∃ ε : NNReal, IsApproxDP ListAddRemove
-      (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)) ε δ := by
-  have hv : (2 : ℝ≥0) ≠ 0 := by norm_num
-  apply isZCDP_to_isApproxDP' (gaussian_count_zcdp (α := α)) (by positivity)
-  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-    exact (gaussianReal_absolutelyContinuous _ hv).trans
-      (gaussianReal_absolutelyContinuous' _ hv)
-  · intro d₁ d₂ _ α hα; simp only [gaussianMech_toMeasure]
-    rw [renyiMoment_gaussianReal_same_var hv hα]
-    exact ENNReal.ofReal_ne_top
-  · exact hδ
-  · exact hδ1
+    ∃ ε : NNReal, IsApproxDP ListHeadAddRemove
+      (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)) ε δ :=
+  isApproxDP_of_isZCDP' (gaussian_count_zcdp (α := α)) (by positivity) hδ hδ1
 
 -- ============================================================================
 -- Test 4: For any ε > ρ, there exists δ giving (ε,δ)-DP
@@ -97,16 +84,9 @@ theorem gaussian_count_exists_approxDP {δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ 
     satisfies (ε,δ)-approximate DP. The δ decreases exponentially as ε grows. -/
 theorem gaussian_count_any_eps {ε : NNReal}
     (hε : (ε : ℝ) > ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) : ℝ≥0)) :
-    ∃ δ : NNReal, IsApproxDP ListAddRemove
-      (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)) ε δ := by
-  have hv : (2 : ℝ≥0) ≠ 0 := by norm_num
-  refine isZCDP_to_isPureDP_trivial (gaussian_count_zcdp (α := α)) (by positivity) ?_ ?_ ε hε
-  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-    exact (gaussianReal_absolutelyContinuous _ hv).trans
-      (gaussianReal_absolutelyContinuous' _ hv)
-  · intro d₁ d₂ _ α hα; simp only [gaussianMech_toMeasure]
-    rw [renyiMoment_gaussianReal_same_var hv hα]
-    exact ENNReal.ofReal_ne_top
+    ∃ δ : NNReal, IsApproxDP ListHeadAddRemove
+      (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)) ε δ :=
+  isApproxDP_of_isZCDP_of_gt (gaussian_count_zcdp (α := α)) (by positivity) ε hε
 
 -- ============================================================================
 -- Test 5: zCDP postprocessing
@@ -114,20 +94,13 @@ theorem gaussian_count_any_eps {ε : NNReal}
 
 /-- Postprocessing a Gaussian mechanism (e.g., rounding) preserves zCDP. -/
 theorem gaussian_count_postprocess_zcdp :
-    IsZCDP ListAddRemove
+    IsZCDP ListHeadAddRemove
       (fun (d : List α) =>
         (gaussianMech (fun l => (l.length : ℝ)) (2 : ℝ≥0) d).map
           (measurable_const (a := (0 : ℝ)) |>.max measurable_id).aemeasurable)
-      ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) := by
-  have hv : (2 : ℝ≥0) ≠ 0 := by norm_num
-  apply isZCDP_postprocess (gaussian_count_zcdp (α := α))
+      ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) :=
+  isZCDP_postprocess (gaussian_count_zcdp (α := α))
     (measurable_const (a := (0 : ℝ)) |>.max measurable_id)
-  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
-    exact (gaussianReal_absolutelyContinuous _ hv).trans
-      (gaussianReal_absolutelyContinuous' _ hv)
-  · intro d₁ d₂ _ α hα; simp only [gaussianMech_toMeasure]
-    rw [renyiMoment_gaussianReal_same_var hv hα]
-    exact ENNReal.ofReal_ne_top
 
 end DPlean4.Examples
 
