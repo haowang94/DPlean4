@@ -64,9 +64,42 @@ This document tracks progress against PLAN.md milestones.
 
 - ✅ `Examples/AdjacencyTests.lean` — All examples compile (ListAddRemove + ListReplace)
 
-## Milestone 4: Gaussian Mechanism + Approximate DP ⬜ NOT STARTED
+## Milestone 4: Gaussian Mechanism + zCDP 🔶 IN PROGRESS
 
-Plan: zCDP → (ε,δ)-DP conversion path (Rényi divergence → Gaussian zCDP → conversion)
+### Definitions (all sorry-free) ✅
+
+- ✅ `Privacy/RenyiDivergence.lean`
+  - `renyiMoment α μ ν`: ∫⁻ (dμ/dν)^α dν
+  - `renyiDivergence α μ ν`: (α-1)⁻¹ · log(renyiMoment)
+  - `renyiMoment_one`: equals 1 when μ ≪ ν (α=1)
+  - `renyiMoment_self`: equals 1 for identical measures
+  - `renyiDivergence_self`: equals 0 for identical measures
+
+- ✅ `Privacy/ZCDP.lean`
+  - `IsZCDP adj M ρ`: ∀ α > 1, D_α(M(d₁)‖M(d₂)) ≤ ρ·α
+  - `isZCDP_mono`: monotonicity in ρ
+
+- ✅ `Mechanism/Gaussian.lean`
+  - `gaussianMech q v`: mechanism definition using Mathlib's `gaussianReal`
+  - `gaussianMech_toMeasure`: simp lemma
+
+### Key Theorems (need proof)
+
+| Theorem | File | Status | Proof Difficulty |
+|---------|------|--------|-----------------|
+| `renyiDivergence_gaussianReal_same_var` | Gaussian.lean | sorry | Hard: Gaussian MGF integral |
+| `renyiMoment_gaussianReal_same_var` | Gaussian.lean | sorry | Hard: same integral |
+| `gaussianMech_isZCDP` | Gaussian.lean | **proved** (modulo Rényi formula) | Sensitivity → ρ bound |
+| `isZCDP_to_isApproxDP` | ZCDP.lean | sorry | Hard: privacy loss + Markov + optimization |
+| `gaussianMech_isApproxDP` | Gaussian.lean | **proved** (uses conversion) | Direct application |
+| `isZCDP_postprocess` | ZCDP.lean | sorry | Moderate: Rényi DPI |
+| `isZCDP_prod` | ZCDP.lean | sorry | Moderate: Rényi additivity |
+| `renyiDivergence_nonneg` | RenyiDivergence.lean | sorry | Moderate: Jensen's inequality |
+| `renyiDivergence_le_iff` | RenyiDivergence.lean | sorry | Easy: algebraic equivalence |
+
+### End-to-End Example ✅
+
+- `gaussian_count_zCDP`: Counting query + Gaussian(v=2) is (1/4)-zCDP
 
 ## Milestone 5: Algorithm Library + Ergonomics ⬜ NOT STARTED
 
@@ -77,20 +110,17 @@ Plan: zCDP → (ε,δ)-DP conversion path (Rényi divergence → Gaussian zCDP �
 | File | Count | Description |
 |------|-------|-------------|
 | `Examples/RandomizedResponse.lean` | 3 | Discrete measure construction (deferred to M5) |
-| **All other 17 files** | **0** | **Fully proved** |
+| `Privacy/RenyiDivergence.lean` | 2 | Non-negativity, equivalence lemma |
+| `Privacy/ZCDP.lean` | 5 | Conversion theorem, postprocessing, composition |
+| `Mechanism/Gaussian.lean` | 2 | Rényi divergence closed form for Gaussians |
+| **All other files** | **0** | **Fully proved** |
 
-Core library (everything except Examples/) is **100% sorry-free**.
+Core library through Milestone 3 is **100% sorry-free** (17 files).
+Milestone 4 adds 9 sorrys in 3 new files (definitions + structural proofs are complete).
 
 ## Build Status
 
-Last build: ✅ SUCCESS — ~1550 lines, 18 modules, 17 sorry-free files
-
-Axiom audits:
-```
-'DPlean4.laplaceMech_isPureDP' depends on axioms: [propext, Classical.choice, Quot.sound]
-'DPlean4.isPureDP_prod' depends on axioms: [propext, Classical.choice, Quot.sound]
-'DPlean4.pureMeasureClose_prod' depends on axioms: [propext, Classical.choice, Quot.sound]
-```
+Last build: ✅ SUCCESS — ~1800 lines, 21 modules
 
 ## Repository
 

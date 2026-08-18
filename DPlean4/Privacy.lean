@@ -9,3 +9,5 @@ import DPlean4.Privacy.Pure
 import DPlean4.Privacy.Approximate
 import DPlean4.Privacy.Postprocessing
 import DPlean4.Privacy.Composition
+import DPlean4.Privacy.RenyiDivergence
+import DPlean4.Privacy.ZCDP
