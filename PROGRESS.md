@@ -94,7 +94,7 @@ This document tracks progress against PLAN.md milestones.
 | `gaussianMech_isApproxDP` | Gaussian.lean | **proved** (uses conversion) | Direct application |
 | `isZCDP_postprocess` | ZCDP.lean | sorry | Moderate: Rényi DPI |
 | `isZCDP_prod` | ZCDP.lean | sorry | Moderate: Rényi additivity |
-| `renyiDivergence_nonneg` | RenyiDivergence.lean | sorry | Moderate: Jensen's inequality |
+| `renyiDivergence_nonneg` | RenyiDivergence.lean | **proved** | Hölder/power mean inequality |
 | `renyiDivergence_le_iff` | RenyiDivergence.lean | sorry | Easy: algebraic equivalence |
 
 ### End-to-End Example ✅
@@ -157,13 +157,13 @@ This document tracks progress against PLAN.md milestones.
 | File | Count | Description |
 |------|-------|-------------|
 | `Examples/RandomizedResponse.lean` | **0** | **Rewritten using exponential mechanism** |
-| `Privacy/RenyiDivergence.lean` | 1 | Non-negativity |
+| `Privacy/RenyiDivergence.lean` | **0** | **Fully proved** |
 | `Privacy/ZCDP.lean` | 5 | Conversion theorem, postprocessing, composition |
 | `Mechanism/Gaussian.lean` | 2 | Rényi divergence closed form for Gaussians |
 | **All other files** | **0** | **Fully proved** |
 
 Milestones 0-3 + 5 + 5.5: **100% sorry-free** (23 files, including RandomizedResponse).
-Total sorrys: **8** (all in Milestone 4: ZCDP.lean ×5, Gaussian.lean ×2, RenyiDivergence.lean ×1).
+Total sorrys: **7** (all in Milestone 4: ZCDP.lean ×5, Gaussian.lean ×2).
 
 ## Build Status
 
