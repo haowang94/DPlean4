@@ -120,6 +120,34 @@ This document tracks progress against PLAN.md milestones.
   - `boolCountUtility_sensitivity`: counting utility has sensitivity 1
   - `private_bool_select`: end-to-end ε-DP for private binary selection
 
+## Milestone 5.5: Sparse Vector Technique (SVT) ✅ PARTIAL (sorry-free for n=1)
+
+- ✅ `Mechanism/SVT.lean`
+  - `measurable_ge_const`: threshold comparison measurability
+  - `measurable_ge_pair`: pairwise comparison measurability
+  - `aboveThreshold`: single-query threshold test (Laplace + postprocessing)
+  - **`aboveThreshold_isPureDP`**: sorry-free ε-DP proof
+  - `noisyAboveThreshold`: two-noise threshold test (product composition + postprocessing)
+  - **`noisyAboveThreshold_isPureDP`**: sorry-free ε-DP proof
+  - `HasStreamL1Sensitivity`: sensitivity for query streams
+  - Axiom audit: depends only on `propext`, `Classical.choice`, `Quot.sound`
+
+- ✅ `Examples/SVTTest.lean`
+  - `count_sensitivity`: counting query has sensitivity 1
+  - `private_count_threshold`: count above T is ε-DP
+  - `private_count_noisy_threshold`: count above noisy T is ε-DP
+
+### What's Proved (sorry-free)
+- Single-query Above Threshold: Laplace mechanism + threshold postprocessing → ε-DP
+- Two-noise Above Threshold: product of data-dependent Laplace + data-independent Laplace + comparison → ε-DP
+- Demonstrates composition + postprocessing pattern for SVT
+
+### What's Not Yet Proved (future work)
+- General n-query SVT with c=1: requires "below threshold is free" argument
+  (Laplace CDF monotonicity under sensitivity shifts, multi-dimensional integration)
+- General SVT with arbitrary c: requires adaptive composition via Markov kernels
+- Buggy variant counterexamples (SVT2, SVT3, SVT5): requires concrete probability computations
+
 ## Milestone 6: Algorithm Library + Ergonomics ⬜ NOT STARTED
 
 ---
@@ -134,12 +162,12 @@ This document tracks progress against PLAN.md milestones.
 | `Mechanism/Gaussian.lean` | 2 | Rényi divergence closed form for Gaussians |
 | **All other files** | **0** | **Fully proved** |
 
-Milestones 0-3 + 5: **100% sorry-free** (20 files).
+Milestones 0-3 + 5 + 5.5: **100% sorry-free** (22 files).
 Milestone 4 adds 8 sorrys in 3 files (definitions + structural proofs are complete).
 
 ## Build Status
 
-Last build: ✅ SUCCESS — ~2100 lines, 23 modules
+Last build: ✅ SUCCESS — ~2300 lines, 25 modules
 
 ## Repository
 
