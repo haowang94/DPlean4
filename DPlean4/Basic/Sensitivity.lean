@@ -88,6 +88,12 @@ theorem hasL1Sensitivity_smul (adj : D → D → Prop) (q : D → ℝ) (Δ : ℝ
     _ = |c| * |q d₁ - q d₂| := abs_mul c _
     _ ≤ |c| * Δ := mul_le_mul_of_nonneg_left (h d₁ d₂ hadj) (abs_nonneg c)
 
+/-- A utility function `u : D → O → ℝ` has sensitivity at most `Δ` if changing
+    the database changes the utility of any output by at most `Δ`.
+    This is the sensitivity notion used by the Exponential mechanism. -/
+def HasUtilitySensitivity {O : Type*} (adj : D → D → Prop) (u : D → O → ℝ) (Δ : ℝ) : Prop :=
+  ∀ d₁ d₂, adj d₁ d₂ → ∀ o, |u d₁ o - u d₂ o| ≤ Δ
+
 end Sensitivity
 
 end DPlean4

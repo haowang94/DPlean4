@@ -101,7 +101,26 @@ This document tracks progress against PLAN.md milestones.
 
 - `gaussian_count_zCDP`: Counting query + Gaussian(v=2) is (1/4)-zCDP
 
-## Milestone 5: Algorithm Library + Ergonomics ⬜ NOT STARTED
+## Milestone 5: Exponential Mechanism ✅ COMPLETE (all sorry-free)
+
+- ✅ `Basic/Sensitivity.lean`
+  - `HasUtilitySensitivity`: sensitivity for utility functions u : D → O → ℝ
+
+- ✅ `Mechanism/Exponential.lean`
+  - `expWeight`: unnormalized weight `exp(ε·u(d,o)/(2Δ))`
+  - `expWeight_le`: pointwise weight bound from sensitivity
+  - `tsum_expWeight_le`: partition function bound
+  - `expMechPMF`: PMF via `PMF.normalize`
+  - `expMech`: mechanism definition
+  - **`expMechPMF_le`**: pointwise PMF ratio ≤ exp(ε) — key lemma, sorry-free
+  - **`expMech_isPureDP`**: THE EXPONENTIAL MECHANISM THEOREM — sorry-free
+    - Axiom audit: depends only on `propext`, `Classical.choice`, `Quot.sound`
+
+- ✅ `Examples/ExponentialMechTest.lean`
+  - `boolCountUtility_sensitivity`: counting utility has sensitivity 1
+  - `private_bool_select`: end-to-end ε-DP for private binary selection
+
+## Milestone 6: Algorithm Library + Ergonomics ⬜ NOT STARTED
 
 ---
 
@@ -109,18 +128,18 @@ This document tracks progress against PLAN.md milestones.
 
 | File | Count | Description |
 |------|-------|-------------|
-| `Examples/RandomizedResponse.lean` | 3 | Discrete measure construction (deferred to M5) |
-| `Privacy/RenyiDivergence.lean` | 2 | Non-negativity, equivalence lemma |
+| `Examples/RandomizedResponse.lean` | 3 | Discrete measure construction (deferred to M6) |
+| `Privacy/RenyiDivergence.lean` | 1 | Non-negativity |
 | `Privacy/ZCDP.lean` | 5 | Conversion theorem, postprocessing, composition |
 | `Mechanism/Gaussian.lean` | 2 | Rényi divergence closed form for Gaussians |
 | **All other files** | **0** | **Fully proved** |
 
-Core library through Milestone 3 is **100% sorry-free** (17 files).
-Milestone 4 adds 9 sorrys in 3 new files (definitions + structural proofs are complete).
+Milestones 0-3 + 5: **100% sorry-free** (20 files).
+Milestone 4 adds 8 sorrys in 3 files (definitions + structural proofs are complete).
 
 ## Build Status
 
-Last build: ✅ SUCCESS — ~1800 lines, 21 modules
+Last build: ✅ SUCCESS — ~2100 lines, 23 modules
 
 ## Repository
 
@@ -129,3 +148,16 @@ Last build: ✅ SUCCESS — ~1800 lines, 21 modules
 ---
 
 Last Updated: 2026-08-18
+
+## Roadmap
+
+### Next Priority: SVT (Sparse Vector Technique)
+- Correct Above Threshold algorithm + proof
+- Known buggy variants from Lyu et al. 2017 — formalize where proofs break
+- High value for finding counterexamples
+
+### Remaining Milestone 4 sorrys (8 total)
+1. `isZCDP_to_isApproxDP` — conversion theorem (hardest)
+2. `renyiDivergence_gaussianReal_same_var` — Gaussian Rényi closed form
+3. `isZCDP_postprocess`, `isZCDP_prod` — moderate (Rényi DPI/additivity)
+4. `renyiDivergence_nonneg` — moderate (Jensen's inequality)
