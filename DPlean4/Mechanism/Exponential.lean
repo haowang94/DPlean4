@@ -65,13 +65,16 @@ section Fintype
 
 variable [Fintype O] [Nonempty O]
 
+omit [Fintype O] in
 theorem tsum_expWeight_ne_zero (u : D → O → ℝ) (ε Δ : ℝ) (d : D) :
     ∑' o, expWeight u ε Δ d o ≠ 0 :=
   ne_of_gt (lt_of_lt_of_le (expWeight_pos u ε Δ d (Classical.arbitrary O))
     (ENNReal.le_tsum _))
 
-theorem tsum_expWeight_ne_top (u : D → O → ℝ) (ε Δ : ℝ) (d : D) :
+omit [Fintype O] [Nonempty O] in
+theorem tsum_expWeight_ne_top [Finite O] (u : D → O → ℝ) (ε Δ : ℝ) (d : D) :
     ∑' o, expWeight u ε Δ d o ≠ ⊤ := by
+  cases nonempty_fintype O
   rw [tsum_fintype]
   exact (sum_lt_top.mpr fun o _ =>
     lt_top_iff_ne_top.mpr (expWeight_ne_top u ε Δ d o)).ne
@@ -89,6 +92,7 @@ private theorem exp_exponent_le {ε Δ : ℝ} (hΔ : 0 < Δ) (hε : 0 ≤ ε)
       _ = ε / 2 + ε * b / (2 * Δ) := by congr 1; field_simp
   nlinarith
 
+omit [Fintype O] [Nonempty O] in
 /-- Sensitivity gives a pointwise weight bound: changing the database scales
     each weight by at most `exp(ε/2)`. -/
 theorem expWeight_le {u : D → O → ℝ} {ε Δ : ℝ} (hΔ : 0 < Δ) (hε : 0 ≤ ε)
@@ -100,6 +104,7 @@ theorem expWeight_le {u : D → O → ℝ} {ε Δ : ℝ} (hΔ : 0 < Δ) (hε : 0
   exact ENNReal.ofReal_le_ofReal (Real.exp_le_exp.mpr
     (exp_exponent_le hΔ hε ((abs_le.mp (hsens d₁ d₂ hadj o)).2)))
 
+omit [Fintype O] [Nonempty O] in
 /-- Reverse weight bound for the partition function sum. -/
 theorem expWeight_le_reverse {u : D → O → ℝ} {ε Δ : ℝ} (hΔ : 0 < Δ) (hε : 0 ≤ ε)
     {adj : D → D → Prop} (hsens : HasUtilitySensitivity adj u Δ)
@@ -110,6 +115,7 @@ theorem expWeight_le_reverse {u : D → O → ℝ} {ε Δ : ℝ} (hΔ : 0 < Δ) 
   exact ENNReal.ofReal_le_ofReal (Real.exp_le_exp.mpr
     (exp_exponent_le hΔ hε (by linarith [(abs_le.mp (hsens d₁ d₂ hadj o)).1])))
 
+omit [Fintype O] [Nonempty O] in
 /-- Partition function bound: Z(d₂) ≤ exp(ε/2) · Z(d₁). -/
 theorem tsum_expWeight_le {u : D → O → ℝ} {ε Δ : ℝ} (hΔ : 0 < Δ) (hε : 0 ≤ ε)
     {adj : D → D → Prop} (hsens : HasUtilitySensitivity adj u Δ)
@@ -149,6 +155,7 @@ theorem expMech_toMeasure (u : D → O → ℝ) (ε Δ : ℝ) (d : D) :
 -- Exponential Mechanism is Pure DP
 -- ============================================================================
 
+omit [MeasurableSpace O] [MeasurableSingletonClass O] in
 /-- Pointwise PMF bound: for any output o, p(o|d₁) ≤ exp(ε) · p(o|d₂).
     Follows from weight bound (f₁(o) ≤ e·f₂(o)) and partition function
     bound (Z₂ ≤ e·Z₁) combined via cross-multiplication. -/
@@ -163,7 +170,7 @@ theorem expMechPMF_le {u : D → O → ℝ} {ε Δ : ℝ} (hΔ : 0 < Δ) (hε : 
   set Z₂ := ∑' o, f₂ o
   set e := ENNReal.ofReal (Real.exp (ε / 2))
   have hexp : ENNReal.ofReal (Real.exp ε) = e * e := by
-    simp only [e, ← ENNReal.ofReal_mul (Real.exp_pos _).le, ← Real.exp_add]; congr 1; ring
+    simp only [e, ← ENNReal.ofReal_mul (Real.exp_pos _).le, ← Real.exp_add]; congr 1; ring_nf
   rw [hexp]
   have hZ₁_ne : Z₁ ≠ 0 := tsum_expWeight_ne_zero u ε Δ d₁
   have hZ₁_fin : Z₁ ≠ ⊤ := tsum_expWeight_ne_top u ε Δ d₁

@@ -8,4 +8,5 @@ import DPlean4.Mechanism.Laplace
 import DPlean4.Mechanism.Gaussian
 import DPlean4.Mechanism.Exponential
 import DPlean4.Mechanism.SVT
+import DPlean4.Mechanism.ReportNoisyMax
 

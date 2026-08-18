@@ -248,6 +248,23 @@ theorem laplacePDFReal_symm (μ : ℝ) (b : ℝ≥0) (x : ℝ) :
   congr 1
   rw [show μ + x - μ = x from by ring, show μ - x - μ = -x from by ring, abs_neg]
 
+-- ============================================================================
+-- Positive mass on intervals
+-- ============================================================================
+
+/-- The Laplace measure assigns positive mass to any interval (a, c] with a < c.
+    This follows from the density being strictly positive everywhere. -/
+theorem laplaceMeasure_Ioc_pos {μ : ℝ} {b : ℝ≥0} (hb : b ≠ 0) {a c : ℝ} (hac : a < c) :
+    0 < laplaceMeasure μ b (Set.Ioc a c) := by
+  rw [laplaceMeasure_of_scale_ne_zero μ hb,
+      MeasureTheory.withDensity_apply _ measurableSet_Ioc,
+      setLIntegral_pos_iff (measurable_laplacePDF μ b)]
+  have h_support : Function.support (laplacePDF μ b) = Set.univ := by
+    ext x; simp only [Function.mem_support, Set.mem_univ, iff_true]
+    exact (ENNReal.ofReal_pos.mpr (laplacePDFReal_pos μ hb x)).ne'
+  rw [h_support, Set.univ_inter]
+  simp only [Real.volume_Ioc, ENNReal.ofReal_pos, sub_pos, gt_iff_lt]; exact hac
+
 end DPlean4
 
 end -- noncomputable section

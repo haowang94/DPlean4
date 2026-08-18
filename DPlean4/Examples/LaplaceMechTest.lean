@@ -109,7 +109,23 @@ theorem laplace_compose_product :
     (laplace_count_1dp (α := α))
 
 -- ============================================================================
--- Test 6: Postprocessing
+-- Test 6: Approximate DP product composition
+-- ============================================================================
+
+/-- Two independent (1,δ)-DP Laplace mechanisms compose to (2, exp(1)·δ+δ)-DP.
+    Exercises the new `isApproxDP_prod` theorem. -/
+theorem laplace_compose_approxDP (δ : NNReal) :
+    IsApproxDP ListAddRemove
+      ((laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)).prod
+       (laplaceMech (D := List α) (fun l => (l.length : ℝ)) (1 : ℝ≥0) (1 : ℝ≥0)))
+      ((1 : ℝ≥0) + (1 : ℝ≥0))
+      (⟨Real.exp ↑(1 : ℝ≥0), Real.exp_nonneg _⟩ * δ + δ) :=
+  isApproxDP_prod
+    (laplace_count_approx_dp (α := α) δ)
+    (laplace_count_approx_dp (α := α) δ)
+
+-- ============================================================================
+-- Test 7: Postprocessing
 -- ============================================================================
 
 /-- Clamping to nonneg preserves DP. -/
@@ -123,7 +139,7 @@ theorem laplace_postprocess :
     (measurable_const (a := (0 : ℝ)) |>.max measurable_id)
 
 -- ============================================================================
--- Test 7: Group privacy
+-- Test 8: Group privacy
 -- ============================================================================
 
 /-- 2-hop adjacency chain gives (1+1)-close bound. -/

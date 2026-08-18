@@ -18,6 +18,8 @@ This file proves basic composition theorems for differential privacy.
 * `measureClose_trans`: Transitivity with tight δ bound (exp(ε₁)·δ₂+δ₁)
 * `pureMeasureClose_prod`: Product composition for pure DP measures
 * `isPureDP_prod`: Independent composition: ε₁-DP ⊗ ε₂-DP → (ε₁+ε₂)-DP
+* `isPureDP_parallel`: Parallel composition: disjoint data → max(ε₁,ε₂)-DP
+* `isApproxDP_parallel`: Approximate DP parallel composition
 * `isPureDP_group`: Group privacy for k-hop adjacency chains
 
 ## Design Notes
@@ -143,7 +145,111 @@ theorem pureMeasureClose_prod {ε₁ ε₂ : NNReal}
         congr 1
         rw [← ENNReal.ofReal_mul (Real.exp_nonneg _), ← Real.exp_add, NNReal.coe_add]
 
+/-- Fixing the left component preserves MeasureClose in the right component. -/
+theorem measureClose_prod_left {ε : NNReal} {δ : NNReal}
+    {μ : ProbabilityMeasure O₁} {ν₁ ν₂ : ProbabilityMeasure O₂}
+    (h : MeasureClose ε δ ν₁ ν₂) :
+    MeasureClose ε δ (μ.prod ν₁) (μ.prod ν₂) := by
+  intro s hs
+  rw [ProbabilityMeasure.toMeasure_prod, ProbabilityMeasure.toMeasure_prod,
+      Measure.prod_apply hs, Measure.prod_apply hs]
+  calc ∫⁻ x, ν₁.toMeasure (Prod.mk x ⁻¹' s) ∂μ.toMeasure
+      ≤ ∫⁻ x, (ENNReal.ofReal (Real.exp ↑ε) * ν₂.toMeasure (Prod.mk x ⁻¹' s) + ↑δ)
+          ∂μ.toMeasure := by
+        apply lintegral_mono; intro x
+        exact h _ (hs.preimage measurable_prodMk_left)
+    _ = ENNReal.ofReal (Real.exp ↑ε) * ∫⁻ x, ν₂.toMeasure (Prod.mk x ⁻¹' s)
+          ∂μ.toMeasure + ↑δ := by
+        rw [lintegral_add_right _ measurable_const,
+            lintegral_const_mul _ (measurable_measure_prodMk_left hs),
+            lintegral_const, measure_univ, mul_one]
+
+/-- Fixing the right component preserves MeasureClose in the left component. -/
+theorem measureClose_prod_right {ε : NNReal} {δ : NNReal}
+    {μ₁ μ₂ : ProbabilityMeasure O₁} {ν : ProbabilityMeasure O₂}
+    (h : MeasureClose ε δ μ₁ μ₂) :
+    MeasureClose ε δ (μ₁.prod ν) (μ₂.prod ν) := by
+  intro s hs
+  rw [ProbabilityMeasure.toMeasure_prod, ProbabilityMeasure.toMeasure_prod,
+      Measure.prod_apply_symm hs, Measure.prod_apply_symm hs]
+  calc ∫⁻ y, μ₁.toMeasure ((fun x => (x, y)) ⁻¹' s) ∂ν.toMeasure
+      ≤ ∫⁻ y, (ENNReal.ofReal (Real.exp ↑ε) * μ₂.toMeasure ((fun x => (x, y)) ⁻¹' s) + ↑δ)
+          ∂ν.toMeasure := by
+        apply lintegral_mono; intro y
+        exact h _ (hs.preimage (measurable_id.prodMk measurable_const))
+    _ = ENNReal.ofReal (Real.exp ↑ε) * ∫⁻ y, μ₂.toMeasure ((fun x => (x, y)) ⁻¹' s)
+          ∂ν.toMeasure + ↑δ := by
+        rw [lintegral_add_right _ measurable_const,
+            lintegral_const_mul _ (measurable_measure_prodMk_right hs),
+            lintegral_const, measure_univ, mul_one]
+
+/-- Product composition for approximate DP at the measure level:
+    if μ₁ ≤[ε₁,δ₁] ν₁ and μ₂ ≤[ε₂,δ₂] ν₂, then
+    μ₁⊗μ₂ ≤[ε₁+ε₂, exp(ε₂)·δ₁ + δ₂] ν₁⊗ν₂.
+
+    Proof via iterated Fubini:
+    (μ₁⊗μ₂)(S) = ∫ μ₂(Sₓ) dμ₁(x) ≤ exp(ε₂)·(μ₁⊗ν₂)(S) + δ₂
+    (μ₁⊗ν₂)(S) = ∫ μ₁(Sʸ) dν₂(y) ≤ exp(ε₁)·(ν₁⊗ν₂)(S) + δ₁ -/
+theorem measureClose_prod {ε₁ ε₂ : NNReal} {δ₁ δ₂ : NNReal}
+    {μ₁ ν₁ : ProbabilityMeasure O₁} {μ₂ ν₂ : ProbabilityMeasure O₂}
+    (h₁ : MeasureClose ε₁ δ₁ μ₁ ν₁) (h₂ : MeasureClose ε₂ δ₂ μ₂ ν₂) :
+    MeasureClose (ε₁ + ε₂) (⟨Real.exp ↑ε₂, Real.exp_nonneg _⟩ * δ₁ + δ₂)
+      (μ₁.prod μ₂) (ν₁.prod ν₂) := by
+  intro s hs
+  rw [ProbabilityMeasure.toMeasure_prod, ProbabilityMeasure.toMeasure_prod]
+  set e₁ := ENNReal.ofReal (Real.exp ↑ε₁)
+  set e₂ := ENNReal.ofReal (Real.exp ↑ε₂)
+  -- Step 1: Fubini on first coordinate, apply DP₂ to sections
+  have step1 : μ₁.toMeasure.prod μ₂.toMeasure s ≤
+      e₂ * (μ₁.toMeasure.prod ν₂.toMeasure s) + ↑δ₂ := by
+    rw [Measure.prod_apply hs, Measure.prod_apply hs]
+    calc ∫⁻ x, μ₂.toMeasure (Prod.mk x ⁻¹' s) ∂μ₁.toMeasure
+        ≤ ∫⁻ x, (e₂ * ν₂.toMeasure (Prod.mk x ⁻¹' s) + ↑δ₂) ∂μ₁.toMeasure := by
+          apply lintegral_mono; intro x
+          exact h₂ _ (hs.preimage (measurable_prodMk_left))
+      _ = e₂ * ∫⁻ x, ν₂.toMeasure (Prod.mk x ⁻¹' s) ∂μ₁.toMeasure + ↑δ₂ := by
+          rw [lintegral_add_right _ measurable_const,
+              lintegral_const_mul _ (measurable_measure_prodMk_left hs),
+              lintegral_const, measure_univ, mul_one]
+  -- Step 2: Fubini on second coordinate, apply DP₁ to sections
+  have step2 : μ₁.toMeasure.prod ν₂.toMeasure s ≤
+      e₁ * (ν₁.toMeasure.prod ν₂.toMeasure s) + ↑δ₁ := by
+    rw [Measure.prod_apply_symm hs, Measure.prod_apply_symm hs]
+    calc ∫⁻ y, μ₁.toMeasure ((fun x => (x, y)) ⁻¹' s) ∂ν₂.toMeasure
+        ≤ ∫⁻ y, (e₁ * ν₁.toMeasure ((fun x => (x, y)) ⁻¹' s) + ↑δ₁) ∂ν₂.toMeasure := by
+          apply lintegral_mono; intro y
+          exact h₁ _ (hs.preimage (measurable_id.prodMk measurable_const))
+      _ = e₁ * ∫⁻ y, ν₁.toMeasure ((fun x => (x, y)) ⁻¹' s) ∂ν₂.toMeasure + ↑δ₁ := by
+          rw [lintegral_add_right _ measurable_const,
+              lintegral_const_mul _ (measurable_measure_prodMk_right hs),
+              lintegral_const, measure_univ, mul_one]
+  -- Step 3: Combine
+  have h_exp : e₁ * e₂ = ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) := by
+    rw [← ENNReal.ofReal_mul (Real.exp_nonneg _), ← Real.exp_add, NNReal.coe_add]
+  have h_delta : e₂ * ↑δ₁ + ↑δ₂ =
+      ↑(⟨Real.exp ↑ε₂, Real.exp_nonneg _⟩ * δ₁ + δ₂) := by
+    change ENNReal.ofReal (Real.exp ↑ε₂) * ↑δ₁ + ↑δ₂ = _
+    rw [ENNReal.ofReal_eq_coe_nnreal (Real.exp_nonneg ↑ε₂),
+        ← ENNReal.coe_mul, ← ENNReal.coe_add]
+    rfl
+  calc μ₁.toMeasure.prod μ₂.toMeasure s
+      ≤ e₂ * (μ₁.toMeasure.prod ν₂.toMeasure s) + ↑δ₂ := step1
+    _ ≤ e₂ * (e₁ * (ν₁.toMeasure.prod ν₂.toMeasure s) + ↑δ₁) + ↑δ₂ := by gcongr
+    _ = e₁ * e₂ * (ν₁.toMeasure.prod ν₂.toMeasure s) + (e₂ * ↑δ₁ + ↑δ₂) := by ring
+    _ = ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * (ν₁.toMeasure.prod ν₂.toMeasure s) +
+        ↑(⟨Real.exp ↑ε₂, Real.exp_nonneg _⟩ * δ₁ + δ₂) := by rw [h_exp, h_delta]
+
 end ProductComposition
+
+/-- Independent composition for approximate DP via product mechanism. -/
+theorem isApproxDP_prod {adj : D → D → Prop}
+    {M₁ : Mechanism D O₁} {M₂ : Mechanism D O₂}
+    {ε₁ ε₂ : NNReal} {δ₁ δ₂ : NNReal}
+    (h₁ : IsApproxDP adj M₁ ε₁ δ₁) (h₂ : IsApproxDP adj M₂ ε₂ δ₂) :
+    IsApproxDP adj (M₁.prod M₂) (ε₁ + ε₂)
+      (⟨Real.exp ↑ε₂, Real.exp_nonneg _⟩ * δ₁ + δ₂) := by
+  intro d₁ d₂ hadj
+  exact measureClose_prod (h₁ d₁ d₂ hadj) (h₂ d₁ d₂ hadj)
 
 /-- Independent composition for pure DP via product mechanism:
     If M₁ is ε₁-DP and M₂ is ε₂-DP, their product mechanism
@@ -161,6 +267,16 @@ theorem isPureDP_group_2 {adj : D → D → Prop} {M : Mechanism D O₁} {ε : N
     (h₁₂ : adj d₁ d₂) (h₂₃ : adj d₂ d₃) :
     PureMeasureClose (ε + ε) (M d₁) (M d₃) :=
   pureMeasureClose_trans (hM d₁ d₂ h₁₂) (hM d₂ d₃ h₂₃)
+
+/-- Approximate DP group privacy for 2 hops: if M is (ε,δ)-DP, then
+    for 2-hop adjacent databases d₁, d₃, M(d₁) and M(d₃) are
+    (2ε, (e^ε + 1)·δ)-close. -/
+theorem isApproxDP_group_2 {adj : D → D → Prop} {M : Mechanism D O₁} {ε δ : NNReal}
+    (hM : IsApproxDP adj M ε δ) {d₁ d₂ d₃ : D}
+    (h₁₂ : adj d₁ d₂) (h₂₃ : adj d₂ d₃) :
+    MeasureClose (ε + ε)
+      (⟨Real.exp ε * δ + δ, by positivity⟩) (M d₁) (M d₃) :=
+  measureClose_trans (hM d₁ d₂ h₁₂) (hM d₂ d₃ h₂₃)
 
 /-- Group privacy for k hops: if M is ε-DP and d₁,...,dₖ form an adjacency chain
     of length k, then M(d₁) and M(dₖ) are (k*ε)-close.
@@ -191,5 +307,64 @@ theorem isPureDP_group {adj : D → D → Prop} {M : Mechanism D O₁} {ε : NNR
     have h3 := pureMeasureClose_trans h1 h2
     convert h3 using 1
     push_cast; ring
+
+-- ============================================================================
+-- Parallel Composition (disjoint data)
+-- ============================================================================
+
+section ParallelComposition
+
+variable {O₁ O₂ : Type*} [MeasurableSpace O₁] [MeasurableSpace O₂]
+
+/-- **Parallel composition for pure DP.**
+
+    If M₁ and M₂ operate on disjoint partitions of the data — meaning for
+    every adjacent pair, at most one mechanism's output changes — then the
+    product mechanism is max(ε₁,ε₂)-DP instead of (ε₁+ε₂)-DP.
+
+    The `disjoint` hypothesis captures: for adjacent d₁ ~ d₂, either M₁'s
+    output is unchanged or M₂'s output is unchanged. This holds whenever
+    the mechanisms access non-overlapping subsets of the database.
+
+    Reference: Dwork & Roth (2014), §3.5.2 and McSherry (2009, PINQ). -/
+theorem isPureDP_parallel {adj : D → D → Prop}
+    {M₁ : Mechanism D O₁} {M₂ : Mechanism D O₂} {ε₁ ε₂ : NNReal}
+    (h₁ : IsPureDP adj M₁ ε₁) (h₂ : IsPureDP adj M₂ ε₂)
+    (disjoint : ∀ d₁ d₂, adj d₁ d₂ → M₁ d₁ = M₁ d₂ ∨ M₂ d₁ = M₂ d₂) :
+    IsPureDP adj (M₁.prod M₂) (max ε₁ ε₂) := by
+  intro d₁ d₂ hadj
+  change PureMeasureClose (max ε₁ ε₂) ((M₁ d₁).prod (M₂ d₁)) ((M₁ d₂).prod (M₂ d₂))
+  rcases disjoint d₁ d₂ hadj with hM₁_eq | hM₂_eq
+  · rw [hM₁_eq]
+    have key := pureMeasureClose_prod (pureMeasureClose_refl (M₁ d₂)) (h₂ d₁ d₂ hadj)
+    simp only [zero_add] at key
+    exact measureClose_epsilon_mono key (le_max_right ε₁ ε₂)
+  · rw [hM₂_eq]
+    have key := pureMeasureClose_prod (h₁ d₁ d₂ hadj) (pureMeasureClose_refl (M₂ d₂))
+    simp only [add_zero] at key
+    exact measureClose_epsilon_mono key (le_max_left ε₁ ε₂)
+
+/-- **Parallel composition for approximate DP.**
+
+    Same as the pure DP version but with (max(ε₁,ε₂), max(δ₁,δ₂))-DP.
+    When data is disjoint, only one mechanism's privacy budget is consumed
+    per adjacent pair. -/
+theorem isApproxDP_parallel {adj : D → D → Prop}
+    {M₁ : Mechanism D O₁} {M₂ : Mechanism D O₂}
+    {ε₁ ε₂ : NNReal} {δ₁ δ₂ : NNReal}
+    (h₁ : IsApproxDP adj M₁ ε₁ δ₁) (h₂ : IsApproxDP adj M₂ ε₂ δ₂)
+    (disjoint : ∀ d₁ d₂, adj d₁ d₂ → M₁ d₁ = M₁ d₂ ∨ M₂ d₁ = M₂ d₂) :
+    IsApproxDP adj (M₁.prod M₂) (max ε₁ ε₂) (max δ₁ δ₂) := by
+  intro d₁ d₂ hadj
+  change MeasureClose (max ε₁ ε₂) (max δ₁ δ₂) ((M₁ d₁).prod (M₂ d₁)) ((M₁ d₂).prod (M₂ d₂))
+  rcases disjoint d₁ d₂ hadj with hM₁_eq | hM₂_eq
+  · rw [hM₁_eq]
+    exact measureClose_epsilon_mono (measureClose_delta_mono
+      (measureClose_prod_left (h₂ d₁ d₂ hadj)) (le_max_right δ₁ δ₂)) (le_max_right ε₁ ε₂)
+  · rw [hM₂_eq]
+    exact measureClose_epsilon_mono (measureClose_delta_mono
+      (measureClose_prod_right (h₁ d₁ d₂ hadj)) (le_max_left δ₁ δ₂)) (le_max_left ε₁ ε₂)
+
+end ParallelComposition
 
 end DPlean4

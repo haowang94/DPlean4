@@ -88,6 +88,58 @@ theorem hasL1Sensitivity_smul (adj : D → D → Prop) (q : D → ℝ) (Δ : ℝ
     _ = |c| * |q d₁ - q d₂| := abs_mul c _
     _ ≤ |c| * Δ := mul_le_mul_of_nonneg_left (h d₁ d₂ hadj) (abs_nonneg c)
 
+/-- Negating a query preserves its sensitivity. -/
+theorem hasL1Sensitivity_neg (adj : D → D → Prop) (q : D → ℝ) (Δ : ℝ)
+    (h : HasL1Sensitivity adj q Δ) : HasL1Sensitivity adj (fun d => -q d) Δ := by
+  intro d₁ d₂ hadj
+  simp only [neg_sub_neg]
+  rw [abs_sub_comm]
+  exact h d₁ d₂ hadj
+
+/-- Subtraction of queries: sensitivity is the sum of individual sensitivities. -/
+theorem hasL1Sensitivity_sub (adj : D → D → Prop) (q₁ q₂ : D → ℝ) (Δ₁ Δ₂ : ℝ)
+    (h₁ : HasL1Sensitivity adj q₁ Δ₁) (h₂ : HasL1Sensitivity adj q₂ Δ₂) :
+    HasL1Sensitivity adj (fun d => q₁ d - q₂ d) (Δ₁ + Δ₂) := by
+  intro d₁ d₂ hadj
+  have hq₁ := h₁ d₁ d₂ hadj
+  have hq₂ := h₂ d₁ d₂ hadj
+  rw [abs_le]
+  constructor <;> linarith [abs_le.mp hq₁, abs_le.mp hq₂]
+
+/-- Lipschitz postprocessing of a query: if `f` is L-Lipschitz and `q` has sensitivity Δ,
+    then `f ∘ q` has sensitivity `L * Δ`. -/
+theorem hasL1Sensitivity_lipschitz (adj : D → D → Prop) (q : D → ℝ) (f : ℝ → ℝ) (Δ L : ℝ)
+    (hq : HasL1Sensitivity adj q Δ) (hL : 0 ≤ L)
+    (hf : ∀ x y : ℝ, |f x - f y| ≤ L * |x - y|) :
+    HasL1Sensitivity adj (fun d => f (q d)) (L * Δ) := by
+  intro d₁ d₂ hadj
+  calc |f (q d₁) - f (q d₂)| ≤ L * |q d₁ - q d₂| := hf _ _
+    _ ≤ L * Δ := by exact mul_le_mul_of_nonneg_left (hq d₁ d₂ hadj) hL
+
+/-- Max of two queries has sensitivity at most the max of their sensitivities. -/
+theorem hasL1Sensitivity_max (adj : D → D → Prop) (q₁ q₂ : D → ℝ) (Δ₁ Δ₂ : ℝ)
+    (h₁ : HasL1Sensitivity adj q₁ Δ₁) (h₂ : HasL1Sensitivity adj q₂ Δ₂)
+    (_hΔ₁ : 0 ≤ Δ₁) (_hΔ₂ : 0 ≤ Δ₂) :
+    HasL1Sensitivity adj (fun d => max (q₁ d) (q₂ d)) (max Δ₁ Δ₂) := by
+  intro d₁ d₂ hadj
+  have hq₁ := h₁ d₁ d₂ hadj
+  have hq₂ := h₂ d₁ d₂ hadj
+  simp only [max_def]
+  split_ifs <;> rw [abs_le] <;> constructor <;>
+    linarith [abs_le.mp hq₁, abs_le.mp hq₂, le_max_left Δ₁ Δ₂, le_max_right Δ₁ Δ₂]
+
+/-- Min of two queries has sensitivity at most the max of their sensitivities. -/
+theorem hasL1Sensitivity_min (adj : D → D → Prop) (q₁ q₂ : D → ℝ) (Δ₁ Δ₂ : ℝ)
+    (h₁ : HasL1Sensitivity adj q₁ Δ₁) (h₂ : HasL1Sensitivity adj q₂ Δ₂)
+    (_hΔ₁ : 0 ≤ Δ₁) (_hΔ₂ : 0 ≤ Δ₂) :
+    HasL1Sensitivity adj (fun d => min (q₁ d) (q₂ d)) (max Δ₁ Δ₂) := by
+  intro d₁ d₂ hadj
+  have hq₁ := h₁ d₁ d₂ hadj
+  have hq₂ := h₂ d₁ d₂ hadj
+  simp only [min_def]
+  split_ifs <;> rw [abs_le] <;> constructor <;>
+    linarith [abs_le.mp hq₁, abs_le.mp hq₂, le_max_left Δ₁ Δ₂, le_max_right Δ₁ Δ₂]
+
 /-- A utility function `u : D → O → ℝ` has sensitivity at most `Δ` if changing
     the database changes the utility of any output by at most `Δ`.
     This is the sensitivity notion used by the Exponential mechanism. -/

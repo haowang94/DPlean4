@@ -6,6 +6,7 @@ Authors: DPlean4 Contributors
 
 import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 import Mathlib.MeasureTheory.Measure.FiniteMeasureProd
+import Mathlib.MeasureTheory.Measure.FiniteMeasurePi
 
 /-!
 # Mechanisms for Differential Privacy
@@ -86,5 +87,17 @@ noncomputable def Mechanism.prod (M₁ : Mechanism D O₁) (M₂ : Mechanism D O
 theorem Mechanism.prod_toMeasure (M₁ : Mechanism D O₁) (M₂ : Mechanism D O₂) (d : D) :
     ((M₁.prod M₂) d).toMeasure = (M₁ d).toMeasure.prod (M₂ d).toMeasure :=
   ProbabilityMeasure.toMeasure_prod _ _
+
+/-- Run a mechanism k times independently on the same database,
+    producing a vector of k independent outputs. This is the k-fold
+    generalization of `Mechanism.prod`. -/
+noncomputable def Mechanism.piCopy (k : ℕ) (M : Mechanism D O₁) :
+    Mechanism D (Fin k → O₁) :=
+  fun d => ProbabilityMeasure.pi (fun _ => M d)
+
+@[simp]
+theorem Mechanism.piCopy_toMeasure (k : ℕ) (M : Mechanism D O₁) (d : D) :
+    ((M.piCopy k) d).toMeasure = Measure.pi (fun (_ : Fin k) => (M d).toMeasure) := by
+  simp [Mechanism.piCopy]
 
 end DPlean4

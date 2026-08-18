@@ -8,6 +8,7 @@ import DPlean4.Privacy.ZCDP
 import DPlean4.Basic.Sensitivity
 import DPlean4.Basic.Adjacency
 import Mathlib.Probability.Distributions.Gaussian.Real
+import Mathlib.MeasureTheory.Integral.Bochner.Basic
 
 /-!
 # Gaussian Mechanism
@@ -72,25 +73,74 @@ theorem gaussianMech_toMeasure (q : D → ℝ) (v : ℝ≥0) (d : D) :
 -- Rényi Divergence for Same-Variance Gaussians
 -- ============================================================================
 
-/-- **Rényi divergence of same-variance Gaussians** (closed form).
-
-    D_α(N(μ₁,v) ‖ N(μ₂,v)) = α(μ₁-μ₂)²/(2v) for α > 1, v > 0.
-
-    The proof requires computing ∫ (dP/dQ)^α dQ via the Gaussian MGF:
-    ∫ (p_μ₁/p_μ₂)^α dN(μ₂,v) = exp(-αΔ²/(2v)) · MGF(αΔ/v)
-    = exp(-αΔ²/(2v)) · exp(α²Δ²/(2v)) = exp(α(α-1)Δ²/(2v)). -/
-theorem renyiDivergence_gaussianReal_same_var {μ₁ μ₂ : ℝ} {v : ℝ≥0}
-    (hv : v ≠ 0) {α : ℝ} (hα : 1 < α) :
-    renyiDivergence α (gaussianReal μ₁ v) (gaussianReal μ₂ v) =
-    α * (μ₁ - μ₂) ^ 2 / (2 * ↑v) := by
-  sorry
+/-- The ratio of same-variance Gaussian PDFs is an exponential. -/
+private lemma gaussianPDFReal_div_same_var {μ₁ μ₂ : ℝ} {v : ℝ≥0} (hv : v ≠ 0) (x : ℝ) :
+    gaussianPDFReal μ₁ v x / gaussianPDFReal μ₂ v x =
+    Real.exp ((μ₁ - μ₂) * (2 * x - μ₁ - μ₂) / (2 * ↑v)) := by
+  simp only [gaussianPDFReal]
+  have hsqrt_ne : (Real.sqrt (2 * Real.pi * ↑v))⁻¹ ≠ 0 :=
+    ne_of_gt (inv_pos.mpr (Real.sqrt_pos_of_pos (by positivity)))
+  rw [mul_div_mul_left _ _ hsqrt_ne, ← Real.exp_sub]
+  congr 1
+  field_simp [NNReal.coe_ne_zero.mpr hv]
+  ring
 
 /-- The Rényi moment for same-variance Gaussians. -/
 theorem renyiMoment_gaussianReal_same_var {μ₁ μ₂ : ℝ} {v : ℝ≥0}
     (hv : v ≠ 0) {α : ℝ} (hα : 1 < α) :
     renyiMoment α (gaussianReal μ₁ v) (gaussianReal μ₂ v) =
     ENNReal.ofReal (Real.exp (α * (α - 1) * (μ₁ - μ₂) ^ 2 / (2 * ↑v))) := by
-  sorry
+  simp only [renyiMoment]
+  set ν₂ := gaussianReal μ₂ v
+  have hv_pos : (0 : ℝ) < ↑v := by positivity
+  have hv_ne : (↑v : ℝ) ≠ 0 := ne_of_gt hv_pos
+  have hac₂ : ν₂ ≪ volume := gaussianReal_absolutelyContinuous μ₂ hv
+  set t := α * (μ₁ - μ₂) / ↑v
+  set c := -(α * (μ₁ - μ₂) * (μ₁ + μ₂) / (2 * ↑v))
+  -- Step 1: Rewrite (rnDeriv)^α as ofReal(exp(c) * exp(t * x))
+  have h_integrand : (fun x ↦ ((gaussianReal μ₁ v).rnDeriv ν₂ x) ^ α) =ᵐ[ν₂]
+      fun x ↦ ENNReal.ofReal (Real.exp c * Real.exp (t * x)) := by
+    have h_div := Measure.rnDeriv_eq_div (gaussianReal_absolutelyContinuous μ₁ hv) hac₂
+    have h_rd₁ := hac₂.ae_eq (rnDeriv_gaussianReal μ₁ v)
+    have h_rd₂ := hac₂.ae_eq (rnDeriv_gaussianReal μ₂ v)
+    filter_upwards [h_div, h_rd₁, h_rd₂] with x hx h₁ h₂
+    rw [hx, h₁, h₂, gaussianPDF, gaussianPDF,
+        ← ENNReal.ofReal_div_of_pos (gaussianPDFReal_pos μ₂ v x hv),
+        ENNReal.ofReal_rpow_of_pos (div_pos (gaussianPDFReal_pos μ₁ v x hv)
+          (gaussianPDFReal_pos μ₂ v x hv)),
+        gaussianPDFReal_div_same_var hv x, ← Real.exp_mul]
+    congr 1; rw [← Real.exp_add]; congr 1
+    simp only [c, t]; field_simp; ring
+  rw [lintegral_congr_ae h_integrand]
+  -- Step 2: Convert lintegral to Bochner integral
+  have hg_int : Integrable (fun x ↦ Real.exp c * Real.exp (t * x)) ν₂ :=
+    (integrable_exp_mul_gaussianReal t).const_mul _
+  have hg_nn : 0 ≤ᵐ[ν₂] (fun x ↦ Real.exp c * Real.exp (t * x)) :=
+    ae_of_all _ (fun x ↦ mul_nonneg (Real.exp_nonneg _) (Real.exp_nonneg _))
+  rw [← ofReal_integral_eq_lintegral_ofReal hg_int hg_nn]
+  -- Step 3: Evaluate the integral via MGF
+  congr 1
+  rw [integral_const_mul]
+  have h_mgf : ∫ x, Real.exp (t * x) ∂ν₂ = Real.exp (μ₂ * t + ↑v * t ^ 2 / 2) := by
+    have := congr_fun (mgf_fun_id_gaussianReal (μ := μ₂) (v := v)) t
+    simp only [mgf] at this; exact this
+  rw [h_mgf, ← Real.exp_add]
+  congr 1
+  simp only [c, t]
+  field_simp
+  ring
+
+/-- **Rényi divergence of same-variance Gaussians** (closed form).
+
+    D_α(N(μ₁,v) ‖ N(μ₂,v)) = α(μ₁-μ₂)²/(2v) for α > 1, v > 0. -/
+theorem renyiDivergence_gaussianReal_same_var {μ₁ μ₂ : ℝ} {v : ℝ≥0}
+    (hv : v ≠ 0) {α : ℝ} (hα : 1 < α) :
+    renyiDivergence α (gaussianReal μ₁ v) (gaussianReal μ₂ v) =
+    α * (μ₁ - μ₂) ^ 2 / (2 * ↑v) := by
+  simp only [renyiDivergence, renyiMoment_gaussianReal_same_var hv hα,
+    ENNReal.toReal_ofReal (Real.exp_nonneg _), Real.log_exp]
+  have : α - 1 ≠ 0 := ne_of_gt (by linarith : (0 : ℝ) < α - 1)
+  field_simp
 
 -- ============================================================================
 -- Gaussian Mechanism is zCDP
@@ -137,13 +187,23 @@ theorem gaussianMech_isZCDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ�
     This follows from: Gaussian is ρ-zCDP with ρ = Δ²/(2v),
     then applying the zCDP → (ε,δ)-DP conversion. -/
 theorem gaussianMech_isApproxDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ≥0} {v : ℝ≥0}
-    (hv : v ≠ 0)
+    (hv : v ≠ 0) (hΔ : Δ ≠ 0)
     (hsens : HasL1Sensitivity adj q ↑Δ)
     {ε δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1)
     (hε : (ε : ℝ) ≥ ((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) +
       2 * Real.sqrt (((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) * Real.log (1 / ↑δ))) :
-    IsApproxDP adj (gaussianMech q v) ε δ :=
-  isZCDP_to_isApproxDP (gaussianMech_isZCDP hv hsens) hδ hδ1 hε
+    IsApproxDP adj (gaussianMech q v) ε δ := by
+  apply isZCDP_to_isApproxDP (gaussianMech_isZCDP hv hsens)
+  · positivity
+  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
+    exact (gaussianReal_absolutelyContinuous _ hv).trans
+      (gaussianReal_absolutelyContinuous' _ hv)
+  · intro d₁ d₂ _ α hα; simp only [gaussianMech_toMeasure]
+    rw [renyiMoment_gaussianReal_same_var hv hα]
+    exact ENNReal.ofReal_ne_top
+  · exact hδ
+  · exact hδ1
+  · exact hε
 
 -- ============================================================================
 -- Examples
@@ -164,6 +224,22 @@ theorem gaussian_count_zCDP :
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
   · rw [h.1, h.2]; simp [List.length_cons, Nat.cast_add, Nat.cast_one]
+
+/-- **Gaussian composition via zCDP**: Two independent counting queries with
+    Gaussian noise (v=2 each) compose to (1/2)-zCDP.
+
+    This demonstrates the zCDP composition theorem (isZCDP_prod):
+    (1/4)-zCDP + (1/4)-zCDP = (1/2)-zCDP. -/
+theorem gaussian_count_compose_zCDP :
+    IsZCDP ListAddRemove
+      ((gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)).prod
+       (gaussianMech (D := List α) (fun l => (l.length : ℝ)) (2 : ℝ≥0)))
+      ((1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0)) + (1 : ℝ≥0) ^ 2 / (2 * (2 : ℝ≥0))) := by
+  have hv : (2 : ℝ≥0) ≠ 0 := by norm_num
+  apply isZCDP_prod gaussian_count_zCDP gaussian_count_zCDP <;>
+  · intro d₁ d₂ _; simp only [gaussianMech_toMeasure]
+    exact (gaussianReal_absolutelyContinuous _ hv).trans
+      (gaussianReal_absolutelyContinuous' _ hv)
 
 end Examples
 
