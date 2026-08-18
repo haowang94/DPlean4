@@ -86,6 +86,13 @@ theorem renyiDivergence_le_iff {μ ν : Measure Ω} {α : ℝ} (hα : 1 < α)
     (hfin : renyiMoment α μ ν ≠ ⊤) :
     renyiDivergence α μ ν ≤ ε ↔
     renyiMoment α μ ν ≤ ENNReal.ofReal (Real.exp ((α - 1) * ε)) := by
-  sorry
+  have hα_pos : (0 : ℝ) < α - 1 := by linarith
+  simp only [renyiDivergence]
+  by_cases hM : renyiMoment α μ ν = 0
+  · simp only [hM, ENNReal.toReal_zero, Real.log_zero, mul_zero]
+    exact ⟨fun _ => bot_le, fun _ => hε⟩
+  · have hM_pos : 0 < (renyiMoment α μ ν).toReal := ENNReal.toReal_pos hM hfin
+    rw [inv_mul_le_iff₀ hα_pos, Real.log_le_iff_le_exp hM_pos,
+        ENNReal.le_ofReal_iff_toReal_le hfin (Real.exp_pos _).le]
 
 end DPlean4
