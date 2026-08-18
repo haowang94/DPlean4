@@ -99,13 +99,6 @@ DPlean4/
 | `vectorGaussianMech_isZCDP` | Vector Gaussian mechanism satisfies ρ-zCDP |
 | `vectorLaplaceMech_isPureDP` | Vector Laplace mechanism satisfies ε-DP |
 
-## References
-
-- Dwork, McSherry, Nissim, Smith (2006). Calibrating Noise to Sensitivity in Private Data Analysis
-- McSherry & Talwar (2007). Mechanism Design via Differential Privacy
-- Bun & Dwork (2016). Concentrated Differential Privacy
-- Mironov (2017). Rényi Differential Privacy
-
 ## License
 
 Apache 2.0
