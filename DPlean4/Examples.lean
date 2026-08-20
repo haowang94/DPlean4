@@ -2,15 +2,12 @@ import DPlean4.Examples.AdjacencyTests
 import DPlean4.Examples.AIMSynthData
 import DPlean4.Examples.AdvancedComposition
 import DPlean4.Examples.CompositionExamples
-import DPlean4.Examples.CorrelatedMechCounterexample
-import DPlean4.Examples.Counterexamples
 import DPlean4.Examples.DPSGDExample
 import DPlean4.Examples.ExponentialMechTest
 import DPlean4.Examples.GaussianMechTest
 import DPlean4.Examples.HistogramExample
 import DPlean4.Examples.LaplaceMechTest
 import DPlean4.Examples.MSTSynthData
-import DPlean4.Examples.NoiseReuseCounterexample
 import DPlean4.Examples.PipelineExample
 import DPlean4.Examples.PrivacyBudget
 import DPlean4.Examples.PrivateMeanEstimation
@@ -24,6 +21,5 @@ import DPlean4.Examples.SensitivityCalibration
 import DPlean4.Examples.SubsamplingExample
 import DPlean4.Examples.StandardAlgorithms
 import DPlean4.Examples.SVTTest
-import DPlean4.Examples.TrickyCounterexamples
 import DPlean4.Examples.UnboundedSensitivity
 import DPlean4.Examples.ValidationTests
