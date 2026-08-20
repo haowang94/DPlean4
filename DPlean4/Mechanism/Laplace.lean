@@ -83,7 +83,7 @@ theorem laplaceMech_toMeasure (q : D → ℝ) (Δ ε : ℝ≥0) (d : D) :
     (Dwork, McSherry, Nissim, Smith, 2006). -/
 theorem laplaceMech_isPureDP {adj : D → D → Prop} {q : D → ℝ} {Δ ε : ℝ≥0}
     (hε : ε ≠ 0)
-    (hsens : HasL1Sensitivity adj q ↑Δ) :
+    (hsens : HasL1Sensitivity adj q Δ) :
     IsPureDP adj (laplaceMech q Δ ε) ε := by
   intro d₁ d₂ hadj s hs
   simp only [laplaceMech_toMeasure, ENNReal.coe_zero, add_zero]

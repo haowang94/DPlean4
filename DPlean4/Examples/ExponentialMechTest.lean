@@ -45,7 +45,7 @@ theorem boolCountUtility_sensitivity (p : α → Prop) [DecidablePred p] :
 theorem private_bool_select (p : α → Prop) [DecidablePred p] (ε : NNReal) :
     IsPureDP ListHeadAddRemove
       (expMech (boolCountUtility p) (ε : ℝ) 1) ε :=
-  expMech_isPureDP (by norm_num : (0 : ℝ) < 1) (boolCountUtility_sensitivity p)
+  expMech_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) (boolCountUtility_sensitivity p)
 
 end BoolOutput
 

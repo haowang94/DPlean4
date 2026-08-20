@@ -12,4 +12,5 @@ import DPlean4.Privacy.Composition
 import DPlean4.Privacy.RenyiDivergence
 import DPlean4.Privacy.ZCDP
 import DPlean4.Privacy.RenyiDP
+import DPlean4.Privacy.TightZCDP
 import DPlean4.Privacy.Subsampling

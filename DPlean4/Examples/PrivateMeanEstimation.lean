@@ -62,26 +62,27 @@ private theorem lo_le_clamp {lo hi x : ℝ} : lo ≤ clamp lo hi x := by
 
 /-- The clamped sum over [0, B] has sensitivity B under add/remove adjacency.
     Adding one element changes the sum by at most B (the element's clamped value). -/
-theorem clampedSum_sensitivity {B : ℝ} (hB : 0 ≤ B) (f : α → ℝ) :
-    HasL1Sensitivity ListHeadAddRemove (clampedSum f 0 B) B := by
+theorem clampedSum_sensitivity (B : ℝ≥0) (f : α → ℝ) :
+    HasL1Sensitivity ListHeadAddRemove (clampedSum f 0 (↑B)) B := by
   intro l₁ l₂ hadj
   simp only [clampedSum]
+  have hB : (0 : ℝ) ≤ ↑B := B.coe_nonneg
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
   · rw [h.1, h.2]
     simp only [List.map_cons, List.sum_cons]
-    have hclamp_nn : 0 ≤ clamp 0 B (f a) := lo_le_clamp
-    have hclamp_le : clamp 0 B (f a) ≤ B := clamp_le_hi hB
-    rw [show clamp 0 B (f a) + (List.map (fun a => clamp 0 B (f a)) s).sum -
-        (List.map (fun a => clamp 0 B (f a)) s).sum = clamp 0 B (f a) by ring]
+    have hclamp_nn : 0 ≤ clamp 0 (↑B) (f a) := lo_le_clamp
+    have hclamp_le : clamp 0 (↑B) (f a) ≤ ↑B := clamp_le_hi hB
+    rw [show clamp 0 (↑B) (f a) + (List.map (fun a => clamp 0 (↑B) (f a)) s).sum -
+        (List.map (fun a => clamp 0 (↑B) (f a)) s).sum = clamp 0 (↑B) (f a) by ring]
     rw [abs_of_nonneg hclamp_nn]
     exact hclamp_le
   · rw [h.1, h.2]
     simp only [List.map_cons, List.sum_cons]
-    have hclamp_nn : 0 ≤ clamp 0 B (f a) := lo_le_clamp
-    have hclamp_le : clamp 0 B (f a) ≤ B := clamp_le_hi hB
-    rw [show (List.map (fun a => clamp 0 B (f a)) s).sum -
-        (clamp 0 B (f a) + (List.map (fun a => clamp 0 B (f a)) s).sum) =
-        -(clamp 0 B (f a)) by ring]
+    have hclamp_nn : 0 ≤ clamp 0 (↑B) (f a) := lo_le_clamp
+    have hclamp_le : clamp 0 (↑B) (f a) ≤ ↑B := clamp_le_hi hB
+    rw [show (List.map (fun a => clamp 0 (↑B) (f a)) s).sum -
+        (clamp 0 (↑B) (f a) + (List.map (fun a => clamp 0 (↑B) (f a)) s).sum) =
+        -(clamp 0 (↑B) (f a)) by ring]
     rw [abs_neg, abs_of_nonneg hclamp_nn]
     exact hclamp_le
 
@@ -91,9 +92,10 @@ theorem clampedSum_sensitivity {B : ℝ} (hB : 0 ≤ B) (f : α → ℝ) :
 
 /-- Sum of [0,1]-clamped values has sensitivity 1. -/
 theorem clampedSum01_sensitivity (f : α → ℝ) :
-    HasL1Sensitivity ListHeadAddRemove (clampedSum f 0 1) (↑(1 : ℝ≥0)) := by
-  simp only [NNReal.coe_one]
-  exact clampedSum_sensitivity (by norm_num) f
+    HasL1Sensitivity ListHeadAddRemove (clampedSum f 0 1) 1 := by
+  have h := clampedSum_sensitivity (1 : ℝ≥0) f
+  simp only [NNReal.coe_one] at h
+  exact h
 
 -- ============================================================================
 -- Example 1: Private sum via Laplace mechanism
@@ -142,7 +144,7 @@ theorem private_sum_general {B : NNReal} (_hB : B ≠ 0) (f : α → ℝ)
     IsPureDP ListHeadAddRemove
       (laplaceMech (clampedSum f 0 (↑B)) B ε) ε := by
   apply laplaceMech_isPureDP hε
-  exact clampedSum_sensitivity (NNReal.coe_nonneg B) f
+  exact clampedSum_sensitivity B f
 
 end DPlean4.Examples
 

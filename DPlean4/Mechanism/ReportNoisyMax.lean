@@ -52,7 +52,7 @@ def queryUtility (qs : Fin n → D → ℝ) : D → Fin n → ℝ :=
 /-- If each query has L1 sensitivity at most Δ, then the query-evaluation utility
     has utility sensitivity Δ: changing the database changes any query's value
     by at most Δ. -/
-theorem queryUtility_sensitivity {adj : D → D → Prop} {qs : Fin n → D → ℝ} {Δ : ℝ}
+theorem queryUtility_sensitivity {adj : D → D → Prop} {qs : Fin n → D → ℝ} {Δ : ℝ≥0}
     (hsens : ∀ i, HasL1Sensitivity adj (qs i) Δ) :
     HasUtilitySensitivity adj (queryUtility qs) Δ := by
   intro d₁ d₂ hadj i
@@ -70,7 +70,7 @@ variable [Nonempty (Fin n)]
 
     Samples index i with probability proportional to `exp(ε · qᵢ(d) / (2Δ))`,
     favoring indices with higher query values. -/
-def reportNoisyMax (qs : Fin n → D → ℝ) (ε : NNReal) (Δ : ℝ) :
+def reportNoisyMax (qs : Fin n → D → ℝ) (ε : NNReal) (Δ : ℝ≥0) :
     Mechanism D (Fin n) :=
   expMech (queryUtility qs) ε Δ
 
@@ -82,7 +82,7 @@ def reportNoisyMax (qs : Fin n → D → ℝ) (ε : NNReal) (Δ : ℝ) :
 
     This is Algorithm 2 from Dwork & Roth (2014), Section 3.3. -/
 theorem reportNoisyMax_isPureDP {adj : D → D → Prop}
-    {qs : Fin n → D → ℝ} {Δ : ℝ} (hΔ : 0 < Δ) {ε : NNReal}
+    {qs : Fin n → D → ℝ} {Δ : ℝ≥0} (hΔ : Δ ≠ 0) {ε : NNReal}
     (hsens : ∀ i, HasL1Sensitivity adj (qs i) Δ) :
     IsPureDP adj (reportNoisyMax qs ε Δ) ε :=
   expMech_isPureDP hΔ (queryUtility_sensitivity hsens)

@@ -47,7 +47,7 @@ theorem databaseSize_sensitivity :
   · simp only [databaseSize, h, Nat.cast_add, Nat.cast_one, add_sub_cancel_left, abs_one]
     norm_num
   · simp only [databaseSize, h, Nat.cast_add, Nat.cast_one]
-    rw [sub_add_cancel_left, abs_neg, abs_one]
+    rw [sub_add_cancel_left, abs_neg, abs_one]; norm_num
 
 /-- Textbook Laplace release of database size: `ε`-DP. -/
 def noisySizeLaplace (ε : ℝ≥0) : Mechanism (List α) ℝ :=

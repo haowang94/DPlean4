@@ -112,7 +112,7 @@ theorem subtraction_sensitivity_example :
 /-- **Max of queries has max sensitivity**. -/
 theorem max_sensitivity_example :
     HasL1Sensitivity ListHeadAddRemove (fun l => max (q₁ l) (q₂ l)) (max 1 1) :=
-  hasL1Sensitivity_max ListHeadAddRemove q₁ q₂ 1 1 q₁_sens q₂_sens (by norm_num) (by norm_num)
+  hasL1Sensitivity_max ListHeadAddRemove q₁ q₂ 1 1 q₁_sens q₂_sens
 
 -- ============================================================================
 -- Calibrating noise to sensitivity

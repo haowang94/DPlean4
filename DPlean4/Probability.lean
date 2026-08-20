@@ -5,3 +5,4 @@ Authors: DPlean4 Contributors
 -/
 
 import DPlean4.Probability.Mechanism
+import DPlean4.Probability.AdaptiveComposition

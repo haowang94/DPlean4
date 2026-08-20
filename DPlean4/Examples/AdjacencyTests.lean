@@ -7,6 +7,8 @@ Authors: DPlean4 Contributors
 import DPlean4.Basic.Adjacency
 import DPlean4.Basic.Sensitivity
 
+open scoped NNReal
+
 /-!
 # Tests and Examples for Adjacency and Sensitivity
 
@@ -21,6 +23,7 @@ These serve as both regression tests and documentation of the API.
 namespace DPlean4.Examples
 
 open DPlean4
+open scoped NNReal
 
 section AdjacencyExamples
 
@@ -59,9 +62,9 @@ def countQuery : List α → ℝ := fun l => (l.length : ℝ)
 theorem countQuery_sensitivity : HasL1Sensitivity ListAddRemove (countQuery : List α → ℝ) 1 := by
   intro l₁ l₂ hadj
   rcases listAddRemove_length_diff l₁ l₂ hadj with h | h
-  · simp only [countQuery, h, Nat.cast_add, Nat.cast_one, add_sub_cancel_left, abs_one]
-    norm_num
-  · simp only [countQuery, h, Nat.cast_add, Nat.cast_one]
+  · simp only [countQuery, h, Nat.cast_add, Nat.cast_one, add_sub_cancel_left, abs_one,
+      NNReal.coe_one, le_refl]
+  · simp only [countQuery, h, Nat.cast_add, Nat.cast_one, NNReal.coe_one]
     rw [sub_add_cancel_left, abs_neg, abs_one]
 
 /-- A constant query has zero sensitivity (regardless of adjacency) -/
@@ -69,7 +72,7 @@ example (c : ℝ) : HasL1Sensitivity ListAddRemove (fun (_ : List α) => c) 0 :=
   constant_hasL1Sensitivity_zero ListAddRemove c
 
 /-- Adding two queries with sensitivities Δ₁ and Δ₂ gives sensitivity Δ₁ + Δ₂ -/
-example (q₁ q₂ : List α → ℝ) (Δ₁ Δ₂ : ℝ)
+example (q₁ q₂ : List α → ℝ) (Δ₁ Δ₂ : ℝ≥0)
     (h₁ : HasL1Sensitivity ListAddRemove q₁ Δ₁)
     (h₂ : HasL1Sensitivity ListAddRemove q₂ Δ₂) :
     HasL1Sensitivity ListAddRemove (fun l => q₁ l + q₂ l) (Δ₁ + Δ₂) :=

@@ -43,6 +43,7 @@ are making an error. The correct approach is:
 namespace DPlean4.Examples
 
 open DPlean4
+open scoped NNReal
 
 -- ============================================================================
 -- Maximum query: unbounded sensitivity
@@ -55,20 +56,20 @@ def maxQuery (l : List ℝ) : ℝ :=
 /-- **The maximum query has unbounded sensitivity.**
 
     For any proposed sensitivity bound Δ, we construct adjacent databases
-    (l₁ = [Δ + 1], l₂ = []) where |maxQuery l₁ - maxQuery l₂| = Δ + 1 > Δ.
+    (l₁ = [↑Δ + 1], l₂ = []) where |maxQuery l₁ - maxQuery l₂| = ↑Δ + 1 > ↑Δ.
 
     This means the Laplace mechanism with ANY finite noise scale would fail
     to provide ε-DP for the maximum query on unbounded data. -/
 theorem maxQuery_unbounded_sensitivity :
-    ∀ Δ : ℝ, ¬ HasL1Sensitivity ListHeadAddRemove maxQuery Δ := by
+    ∀ Δ : ℝ≥0, ¬ HasL1Sensitivity ListHeadAddRemove maxQuery Δ := by
   intro Δ hΔ
-  have h_adj : ListHeadAddRemove [Δ + 1] [] := by
-    left; exact ⟨Δ + 1, [], rfl, rfl⟩
-  have h_sens := hΔ [Δ + 1] [] h_adj
+  have h_adj : ListHeadAddRemove [(↑Δ : ℝ) + 1] [] := by
+    left; exact ⟨(↑Δ : ℝ) + 1, [], rfl, rfl⟩
+  have h_sens := hΔ [(↑Δ : ℝ) + 1] [] h_adj
   simp only [maxQuery, List.foldl, sub_zero] at h_sens
-  have h1 : (0 : ℝ) ≤ max 0 (Δ + 1) := le_max_left _ _
+  have h1 : (0 : ℝ) ≤ max 0 ((↑Δ : ℝ) + 1) := le_max_left _ _
   rw [abs_of_nonneg h1] at h_sens
-  linarith [le_max_right (0 : ℝ) (Δ + 1)]
+  linarith [le_max_right (0 : ℝ) ((↑Δ : ℝ) + 1)]
 
 -- ============================================================================
 -- Sum query (unclamped): unbounded sensitivity
@@ -80,15 +81,15 @@ def sumQuery (l : List ℝ) : ℝ :=
 
 /-- **The unclamped sum has unbounded sensitivity.**
 
-    For any Δ, adjacent databases ([Δ + 1], []) differ by Δ + 1 > Δ in sum.
+    For any Δ, adjacent databases ([↑Δ + 1], []) differ by ↑Δ + 1 > ↑Δ in sum.
     This is why `PrivateMeanEstimation.lean` uses clamped sums. -/
 theorem sumQuery_unbounded_sensitivity :
-    ∀ Δ : ℝ, ¬ HasL1Sensitivity ListHeadAddRemove sumQuery Δ := by
+    ∀ Δ : ℝ≥0, ¬ HasL1Sensitivity ListHeadAddRemove sumQuery Δ := by
   intro Δ hΔ
-  have h_adj : ListHeadAddRemove [Δ + 1] ([] : List ℝ) := by
-    left; exact ⟨Δ + 1, [], rfl, rfl⟩
-  have h_sens := hΔ [Δ + 1] [] h_adj
+  have h_adj : ListHeadAddRemove [(↑Δ : ℝ) + 1] ([] : List ℝ) := by
+    left; exact ⟨(↑Δ : ℝ) + 1, [], rfl, rfl⟩
+  have h_sens := hΔ [(↑Δ : ℝ) + 1] [] h_adj
   simp only [sumQuery, List.sum_cons, List.sum_nil, add_zero, sub_zero] at h_sens
-  linarith [le_abs_self (Δ + 1)]
+  linarith [le_abs_self ((↑Δ : ℝ) + 1)]
 
 end DPlean4.Examples

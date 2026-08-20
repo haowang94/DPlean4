@@ -45,9 +45,8 @@ theorem countQuery_sens :
 
 /-- A constant function has L1 sensitivity 0. -/
 theorem const_sens (c : ℝ) :
-    HasL1Sensitivity ListHeadAddRemove (fun (_ : List α) => c) (↑(0 : ℝ≥0)) := by
-  simp only [NNReal.coe_zero]
-  exact constant_hasL1Sensitivity_zero ListHeadAddRemove c
+    HasL1Sensitivity ListHeadAddRemove (fun (_ : List α) => c) 0 :=
+  constant_hasL1Sensitivity_zero ListHeadAddRemove c
 
 -- ============================================================================
 -- Test 1: Basic Laplace mechanism — 1-DP for count query

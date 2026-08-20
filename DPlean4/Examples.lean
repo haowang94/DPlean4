@@ -1,4 +1,5 @@
 import DPlean4.Examples.AdjacencyTests
+import DPlean4.Examples.AIMSynthData
 import DPlean4.Examples.AdvancedComposition
 import DPlean4.Examples.CompositionExamples
 import DPlean4.Examples.CorrelatedMechCounterexample
@@ -8,6 +9,7 @@ import DPlean4.Examples.ExponentialMechTest
 import DPlean4.Examples.GaussianMechTest
 import DPlean4.Examples.HistogramExample
 import DPlean4.Examples.LaplaceMechTest
+import DPlean4.Examples.MSTSynthData
 import DPlean4.Examples.NoiseReuseCounterexample
 import DPlean4.Examples.PipelineExample
 import DPlean4.Examples.PrivacyBudget

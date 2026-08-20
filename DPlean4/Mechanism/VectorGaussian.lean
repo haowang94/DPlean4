@@ -126,7 +126,7 @@ theorem renyiDivergence_pi_gaussianReal {ι : Type*} [Fintype ι]
 theorem vectorGaussianMech_isZCDP {ι : Type*} [Fintype ι]
     {adj : D → D → Prop} {q : D → ι → ℝ} {Δ : ℝ≥0} {v : ℝ≥0}
     (hv : v ≠ 0)
-    (hsens : HasL2VectorSensitivity adj q ↑Δ) :
+    (hsens : HasL2VectorSensitivity adj q Δ) :
     IsZCDP adj (vectorGaussianMech q v) (Δ ^ 2 / (2 * v)) where
   ac d₁ d₂ _ := by
     simp only [vectorGaussianMech_toMeasure]
@@ -160,7 +160,7 @@ theorem vectorGaussianMech_isZCDP {ι : Type*} [Fintype ι]
 theorem vectorGaussianMech_isApproxDP {ι : Type*} [Fintype ι]
     {adj : D → D → Prop} {q : D → ι → ℝ} {Δ : ℝ≥0} {v : ℝ≥0}
     (hv : v ≠ 0) (hΔ : Δ ≠ 0)
-    (hsens : HasL2VectorSensitivity adj q ↑Δ)
+    (hsens : HasL2VectorSensitivity adj q Δ)
     {ε δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1)
     (hε : (ε : ℝ) ≥ ((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) +
       2 * Real.sqrt (((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) * Real.log (1 / ↑δ))) :

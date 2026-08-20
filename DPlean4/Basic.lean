@@ -6,3 +6,4 @@ Authors: DPlean4 Contributors
 
 import DPlean4.Basic.Adjacency
 import DPlean4.Basic.Sensitivity
+import DPlean4.Basic.TabularData

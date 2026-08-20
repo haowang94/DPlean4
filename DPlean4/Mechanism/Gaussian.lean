@@ -154,7 +154,7 @@ theorem renyiDivergence_gaussianReal_same_var {μ₁ μ₂ : ℝ} {v : ℝ≥0}
     Proof uses: D_α(N(q(d₁),v) ‖ N(q(d₂),v)) = α|q(d₁)-q(d₂)|²/(2v) ≤ α·Δ²/(2v). -/
 theorem gaussianMech_isZCDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ≥0} {v : ℝ≥0}
     (hv : v ≠ 0)
-    (hsens : HasL2Sensitivity adj q ↑Δ) :
+    (hsens : HasL2Sensitivity adj q Δ) :
     IsZCDP adj (gaussianMech q v) (Δ ^ 2 / (2 * v)) where
   ac d₁ d₂ _ := by
     simp only [gaussianMech_toMeasure]
@@ -196,7 +196,7 @@ theorem gaussianMech_isZCDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ�
     then applying the zCDP → (ε,δ)-DP conversion. -/
 theorem gaussianMech_isApproxDP {adj : D → D → Prop} {q : D → ℝ} {Δ : ℝ≥0} {v : ℝ≥0}
     (hv : v ≠ 0) (hΔ : Δ ≠ 0)
-    (hsens : HasL2Sensitivity adj q ↑Δ)
+    (hsens : HasL2Sensitivity adj q Δ)
     {ε δ : NNReal} (hδ : 0 < δ) (hδ1 : (δ : ℝ) < 1)
     (hε : (ε : ℝ) ≥ ((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) +
       2 * Real.sqrt (((Δ ^ 2 / (2 * v) : ℝ≥0) : ℝ) * Real.log (1 / ↑δ))) :

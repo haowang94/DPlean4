@@ -87,7 +87,7 @@ theorem vectorLaplaceMech_toMeasure {ι : Type*} [Fintype ι]
 theorem vectorLaplaceMech_isPureDP {ι : Type*} [Fintype ι]
     {adj : D → D → Prop} {q : D → ι → ℝ} {Δ ε : ℝ≥0}
     (hε : ε ≠ 0)
-    (hsens : HasL1VectorSensitivity adj q ↑Δ) :
+    (hsens : HasL1VectorSensitivity adj q Δ) :
     IsPureDP adj (vectorLaplaceMech q Δ ε) ε := by
   intro d₁ d₂ hadj
   set b := Δ / ε with hb_def
@@ -145,15 +145,15 @@ theorem vectorLaplaceMech_isPureDP {ι : Type*} [Fintype ι]
               mul_div_cancel_right₀ _ hb_ne]
 
 -- ============================================================================
--- L1 → L2 sensitivity corollary for Gaussian fallback
+-- Approximate DP from pure DP
 -- ============================================================================
 
-/-- The vector Laplace mechanism also satisfies zCDP (via L1→L2 conversion),
-    though with a worse bound than using the Gaussian mechanism directly. -/
+/-- The vector Laplace mechanism satisfies (ε',δ)-approximate DP for any ε' ≥ ε,
+    by relaxing pure DP to approximate DP. -/
 theorem vectorLaplaceMech_isApproxDP {ι : Type*} [Fintype ι]
     {adj : D → D → Prop} {q : D → ι → ℝ} {Δ ε : ℝ≥0}
     (hε : ε ≠ 0)
-    (hsens : HasL1VectorSensitivity adj q ↑Δ)
+    (hsens : HasL1VectorSensitivity adj q Δ)
     {ε' δ : NNReal} (hle : ε ≤ ε') :
     IsApproxDP adj (vectorLaplaceMech q Δ ε) ε' δ :=
   isApproxDP_of_isPureDP δ (isPureDP_mono (vectorLaplaceMech_isPureDP hε hsens) hle)

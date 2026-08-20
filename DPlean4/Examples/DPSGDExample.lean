@@ -67,7 +67,7 @@ def clippedSum (f : α → ℝ) (C : ℝ) (l : List α) : ℝ :=
 
 /-- Clipped sum has L1 sensitivity C under add/remove adjacency.
     Adding one record changes the sum by at most C (the clipping bound). -/
-theorem clippedSum_sensitivity (f : α → ℝ) {C : ℝ} (hC : 0 ≤ C) :
+theorem clippedSum_sensitivity (f : α → ℝ) (C : ℝ≥0) :
     HasL1Sensitivity ListHeadAddRemove (clippedSum f C) C := by
   intro l₁ l₂ hadj
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
@@ -75,13 +75,13 @@ theorem clippedSum_sensitivity (f : α → ℝ) {C : ℝ} (hC : 0 ≤ C) :
     simp only [clippedSum, List.map_cons, List.sum_cons]
     rw [show (clipGrad C (f a) + (s.map fun a => clipGrad C (f a)).sum) -
       (s.map fun a => clipGrad C (f a)).sum = clipGrad C (f a) by ring]
-    exact abs_clipGrad_le hC (f a)
+    exact abs_clipGrad_le C.2 (f a)
   · rw [h.1, h.2]
     simp only [clippedSum, List.map_cons, List.sum_cons]
     rw [show (s.map fun a => clipGrad C (f a)).sum -
       (clipGrad C (f a) + (s.map fun a => clipGrad C (f a)).sum) =
       -(clipGrad C (f a)) by ring, abs_neg]
-    exact abs_clipGrad_le hC (f a)
+    exact abs_clipGrad_le C.2 (f a)
 
 -- ============================================================================
 -- DP-SGD: One Step
@@ -103,7 +103,7 @@ def dpsgdStep (f : α → ℝ) (C v : ℝ≥0) : Mechanism (List α) ℝ :=
 theorem dpsgdStep_isZCDP (f : α → ℝ) {C v : ℝ≥0} (hv : v ≠ 0) :
     IsZCDP ListHeadAddRemove (dpsgdStep f C v)
       (C ^ 2 / (2 * v)) :=
-  gaussianMech_isZCDP hv (clippedSum_sensitivity f C.2).toL2
+  gaussianMech_isZCDP hv (clippedSum_sensitivity f C).toL2
 
 -- ============================================================================
 -- DP-SGD: Composition over k steps

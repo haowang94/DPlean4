@@ -109,6 +109,33 @@ theorem listAddRemove_of_head {l₁ l₂ : List α} :
   · exact Or.inl ⟨[], l, a, by simpa using h₁, by simpa using h₂⟩
   · exact Or.inr ⟨[], l, a, by simpa using h₂, by simpa using h₁⟩
 
+-- ============================================================================
+-- Permutation invariance and sensitivity transfer
+-- ============================================================================
+
+/-- A function on lists is permutation-invariant if it depends only on the
+    multiset of elements, not their ordering. -/
+def IsPermutationInvariant {β : Type*} (q : List α → β) : Prop :=
+  ∀ l₁ l₂ : List α, l₁.Perm l₂ → q l₁ = q l₂
+
+/-- For permutation-invariant queries, `ListAddRemove` adjacency reduces to
+    `ListHeadAddRemove`: inserting `a` at position `n` produces the same query
+    output as prepending `a`. -/
+theorem listAddRemove_eq_head_of_permInvariant {β : Type*}
+    {q : List α → β} (hq : IsPermutationInvariant q)
+    {l₁ l₂ : List α} (hadj : ListAddRemove l₁ l₂) :
+    ∃ a s, ListHeadAddRemove (a :: s) s ∧
+      q l₁ = q (a :: s) ∧ q l₂ = q s ∨
+      q l₂ = q (a :: s) ∧ q l₁ = q s := by
+  rcases hadj with ⟨pre, suffix, a, rfl, rfl⟩ | ⟨pre, suffix, a, rfl, rfl⟩
+  · refine ⟨a, pre ++ suffix, ?_⟩
+    left
+    exact ⟨Or.inl ⟨a, pre ++ suffix, rfl, rfl⟩,
+           hq _ _ List.perm_middle, rfl⟩
+  · refine ⟨a, pre ++ suffix, ?_⟩
+    right
+    exact ⟨hq _ _ List.perm_middle, rfl⟩
+
 end ListAdjacency
 
 end DPlean4

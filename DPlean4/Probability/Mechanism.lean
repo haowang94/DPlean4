@@ -29,8 +29,7 @@ A `Kernel` requires both input and output to be measurable spaces, but databases
 into an artificial measurable space.
 
 Adaptive composition (where a second mechanism depends measurably on the first's output)
-is not provided. A future kernel-facing layer would require explicit
-measurability of the continuation.
+is provided in `DPlean4.Probability.AdaptiveComposition` via `Mechanism.seq`.
 
 This design aligns with the plan's principle: prototype both representations, select the
 public API after concrete experience with postprocessing and composition proofs.
@@ -99,5 +98,31 @@ noncomputable def Mechanism.piCopy (k : ℕ) (M : Mechanism D O₁) :
 theorem Mechanism.piCopy_toMeasure (k : ℕ) (M : Mechanism D O₁) (d : D) :
     ((M.piCopy k) d).toMeasure = Measure.pi (fun (_ : Fin k) => (M d).toMeasure) := by
   simp [Mechanism.piCopy]
+
+end DPlean4
+
+-- ============================================================================
+-- Heterogeneous pi mechanism (independent composition over finite families)
+-- ============================================================================
+
+namespace DPlean4
+
+open MeasureTheory
+
+variable {D : Type*} {ι : Type*} [Fintype ι]
+  {O : ι → Type*} [∀ i, MeasurableSpace (O i)]
+
+/-- Run a family of mechanisms independently on the same database,
+    producing an output for each index. This generalizes `Mechanism.prod`
+    from binary to arbitrary finite products. -/
+noncomputable def Mechanism.pi
+    (M : ∀ i, Mechanism D (O i)) : Mechanism D (∀ i, O i) :=
+  fun d => ProbabilityMeasure.pi (fun i => M i d)
+
+@[simp]
+theorem Mechanism.pi_toMeasure
+    (M : ∀ i, Mechanism D (O i)) (d : D) :
+    ((Mechanism.pi M) d).toMeasure = Measure.pi (fun i => (M i d).toMeasure) := by
+  simp [Mechanism.pi]
 
 end DPlean4

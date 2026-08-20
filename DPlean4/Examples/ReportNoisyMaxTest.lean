@@ -38,7 +38,7 @@ variable {α : Type*}
     one element changes each bin by at most 1. -/
 private theorem histogramBin_sens (ps : Fin n → α → Bool) (i : Fin n) :
     HasL1Sensitivity ListHeadAddRemove
-      (fun (l : List α) => (l.countP (ps i) : ℝ)) (↑(1 : ℝ≥0)) := by
+      (fun (l : List α) => (l.countP (ps i) : ℝ)) 1 := by
   intro l₁ l₂ hadj
   simp only [NNReal.coe_one]
   obtain ⟨a, s, h⟩ | ⟨a, s, h⟩ := hadj
@@ -66,7 +66,7 @@ theorem histogram_bin_select (ps : Fin n → α → Bool) [Nonempty (Fin n)]
     IsPureDP ListHeadAddRemove
       (reportNoisyMax (fun i (l : List α) => (l.countP (ps i) : ℝ)) ε 1)
       ε :=
-  reportNoisyMax_isPureDP (by norm_num : (0 : ℝ) < 1) (histogramBin_sens ps)
+  reportNoisyMax_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) (histogramBin_sens ps)
 
 -- ============================================================================
 -- Example 2: Best of 3 queries
@@ -80,7 +80,7 @@ private def threeQueries : Fin 3 → List α → ℝ :=
     fun l => (l.length : ℝ) - 1]
 
 private theorem threeQueries_sens (i : Fin 3) :
-    HasL1Sensitivity ListHeadAddRemove (threeQueries (α := α) i) (↑(1 : ℝ≥0)) := by
+    HasL1Sensitivity ListHeadAddRemove (threeQueries (α := α) i) 1 := by
   fin_cases i <;> {
     intro l₁ l₂ hadj
     simp only [threeQueries, NNReal.coe_one, Matrix.cons_val_zero, Matrix.cons_val_one,
@@ -97,7 +97,7 @@ theorem best_query_select_3 (ε : NNReal) :
     IsPureDP ListHeadAddRemove
       (reportNoisyMax (threeQueries (α := α)) ε 1)
       ε :=
-  reportNoisyMax_isPureDP (by norm_num : (0 : ℝ) < 1) threeQueries_sens
+  reportNoisyMax_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) threeQueries_sens
 
 -- ============================================================================
 -- Example 3: DP monotonicity

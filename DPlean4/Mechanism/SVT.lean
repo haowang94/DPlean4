@@ -93,7 +93,7 @@ def aboveThreshold (q : D → ℝ) (T : ℝ) (Δ ε : NNReal) : Mechanism D Bool
     and thresholding is a deterministic postprocessing step that cannot degrade
     privacy. -/
 theorem aboveThreshold_isPureDP {adj : D → D → Prop} {q : D → ℝ} {Δ ε : NNReal}
-    (T : ℝ) (hε : ε ≠ 0) (hsens : HasL1Sensitivity adj q ↑Δ) :
+    (T : ℝ) (hε : ε ≠ 0) (hsens : HasL1Sensitivity adj q Δ) :
     IsPureDP adj (aboveThreshold q T Δ ε) ε := by
   unfold aboveThreshold
   exact isPureDP_postprocess (laplaceMech_isPureDP hε hsens) (measurable_ge_const T)
@@ -129,7 +129,7 @@ def noisyAboveThreshold (q : D → ℝ) (T : ℝ) (Δ ε : NNReal) (b_t : NNReal
     postprocessing step. -/
 theorem noisyAboveThreshold_isPureDP {adj : D → D → Prop} {q : D → ℝ}
     {Δ ε : NNReal} (T : ℝ) (b_t : NNReal)
-    (hε : ε ≠ 0) (hsens : HasL1Sensitivity adj q ↑Δ) :
+    (hε : ε ≠ 0) (hsens : HasL1Sensitivity adj q Δ) :
     IsPureDP adj (noisyAboveThreshold q T Δ ε b_t) ε := by
   unfold noisyAboveThreshold
   have hconst : IsPureDP adj
@@ -146,7 +146,7 @@ theorem noisyAboveThreshold_isPureDP {adj : D → D → Prop} {q : D → ℝ}
 /-- A stream of queries has L1 sensitivity at most Δ if every individual query
     in the stream has L1 sensitivity at most Δ. -/
 def HasStreamL1Sensitivity (adj : D → D → Prop)
-    (qs : Fin n → D → ℝ) (Δ : ℝ) : Prop :=
+    (qs : Fin n → D → ℝ) (Δ : ℝ≥0) : Prop :=
   ∀ i, HasL1Sensitivity adj (qs i) Δ
 
 -- ============================================================================

@@ -64,6 +64,6 @@ noncomputable def randomizedResponse (ε : NNReal) : Mechanism Bool Bool :=
     and flips with probability `1/(exp(ε/2) + 1)`. -/
 theorem randomizedResponse_isPureDP (ε : NNReal) :
     IsPureDP SingleBitAdjacent (randomizedResponse ε) ε :=
-  expMech_isPureDP (by norm_num : (0 : ℝ) < 1) rrUtility_sensitivity
+  expMech_isPureDP one_ne_zero rrUtility_sensitivity
 
 end DPlean4

@@ -63,7 +63,7 @@ def modelScore {n : ℕ} (scores : Fin n → List α → ℝ) : List α → Fin 
 /-- If each model's score has L1 sensitivity at most Δ (e.g., each score is
     a count or average over the dataset), then the utility function for
     private selection has utility sensitivity Δ. -/
-theorem modelScore_sensitivity {n : ℕ} {scores : Fin n → List α → ℝ} {Δ : ℝ}
+theorem modelScore_sensitivity {n : ℕ} {scores : Fin n → List α → ℝ} {Δ : ℝ≥0}
     (hsens : ∀ i, HasL1Sensitivity ListHeadAddRemove (scores i) Δ) :
     HasUtilitySensitivity ListHeadAddRemove (modelScore scores) Δ := by
   intro d₁ d₂ hadj i
@@ -72,7 +72,7 @@ theorem modelScore_sensitivity {n : ℕ} {scores : Fin n → List α → ℝ} {�
 /-- Private model selection mechanism: given n ≥ 1 models with scoring functions,
     privately select the best one using the exponential mechanism. -/
 def privateModelSelect {n : ℕ} [Nonempty (Fin n)] (scores : Fin n → List α → ℝ)
-    (ε : NNReal) (Δ : ℝ) : Mechanism (List α) (Fin n) :=
+    (ε : NNReal) (Δ : ℝ≥0) : Mechanism (List α) (Fin n) :=
   reportNoisyMax scores ε Δ
 
 /-- **Private model selection is ε-DP.**
@@ -85,7 +85,7 @@ def privateModelSelect {n : ℕ} [Nonempty (Fin n)] (scores : Fin n → List α 
     so powerful for selection problems. -/
 theorem privateModelSelect_isPureDP {n : ℕ} [Nonempty (Fin n)]
     {scores : Fin n → List α → ℝ}
-    {Δ : ℝ} (hΔ : 0 < Δ) {ε : NNReal}
+    {Δ : ℝ≥0} (hΔ : Δ ≠ 0) {ε : NNReal}
     (hsens : ∀ i, HasL1Sensitivity ListHeadAddRemove (scores i) Δ) :
     IsPureDP ListHeadAddRemove (privateModelSelect scores ε Δ) ε :=
   reportNoisyMax_isPureDP hΔ hsens
@@ -134,7 +134,7 @@ theorem select_best_of_three_models (ε : NNReal) :
     IsPureDP ListHeadAddRemove
       (privateModelSelect threeScores ε 1)
       ε :=
-  privateModelSelect_isPureDP (by norm_num) threeScores_sensitivity
+  privateModelSelect_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) threeScores_sensitivity
 
 end DPlean4.Examples
 
