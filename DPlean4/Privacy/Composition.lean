@@ -8,6 +8,8 @@ import DPlean4.Privacy.Approximate
 import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.MeasureTheory.Measure.FiniteMeasureProd
 import Mathlib.MeasureTheory.Measure.FiniteMeasurePi
+import Mathlib.MeasureTheory.Measure.Decomposition.Hahn
+import Mathlib.MeasureTheory.Measure.Sub
 
 /-!
 # Composition Theorems for Differential Privacy
@@ -251,6 +253,170 @@ theorem isApproxDP_prod {adj : D → D → Prop}
       (⟨Real.exp ↑ε₂, Real.exp_nonneg _⟩ * δ₁ + δ₂) := by
   intro d₁ d₂ hadj
   exact measureClose_prod (h₁ d₁ d₂ hadj) (h₂ d₁ d₂ hadj)
+
+-- ============================================================================
+-- Tight basic composition: δ₁ + δ₂ (standard basic composition)
+-- ============================================================================
+
+/-- **Good-part split.** From a one-directional `(ε,δ)` event bound `μ ≤[ε,δ] ν`,
+    extract an honest sub-measure `μg ≤ μ` that is also dominated by `exp(ε)·ν`,
+    with the missing mass on every event bounded by `δ`.
+
+    This is the standard "`(ε,δ)`-indistinguishability ⟹ bad event of mass ≤ δ"
+    decomposition, specialized to one direction, and is the key ingredient for
+    the tight `δ₁+δ₂` basic composition theorem. Constructed via the measure-level
+    Hahn decomposition of `μ` versus `exp(ε)·ν`. -/
+theorem measureClose_split {O : Type*} [MeasurableSpace O] {ε δ : NNReal}
+    {μ ν : ProbabilityMeasure O} (h : MeasureClose ε δ μ ν) :
+    ∃ μg : Measure O, μg ≤ μ.toMeasure ∧
+      μg ≤ ENNReal.ofReal (Real.exp ε) • ν.toMeasure ∧
+      (∀ t, MeasurableSet t → μ.toMeasure t ≤ μg t + δ) := by
+  set ρ : Measure O := ENNReal.ofReal (Real.exp ε) • ν.toMeasure with hρdef
+  haveI hρfin : IsFiniteMeasure ρ := by
+    constructor
+    rw [hρdef, Measure.smul_apply, smul_eq_mul, measure_univ, mul_one]
+    exact ENNReal.ofReal_lt_top
+  obtain ⟨s, hs⟩ := exists_isHahnDecomposition μ.toMeasure ρ
+  have hsm : MeasurableSet s := hs.measurableSet
+  refine ⟨μ.toMeasure.restrict s + ρ.restrict sᶜ, ?_, ?_, ?_⟩
+  · calc μ.toMeasure.restrict s + ρ.restrict sᶜ
+        ≤ μ.toMeasure.restrict s + μ.toMeasure.restrict sᶜ :=
+          add_le_add le_rfl hs.ge_on_compl
+      _ = μ.toMeasure := Measure.restrict_add_restrict_compl hsm
+  · calc μ.toMeasure.restrict s + ρ.restrict sᶜ
+        ≤ ρ.restrict s + ρ.restrict sᶜ := add_le_add hs.le_on le_rfl
+      _ = ρ := Measure.restrict_add_restrict_compl hsm
+  · intro t ht
+    -- On sᶜ, ρ ≤ μ pointwise.
+    have hρμ : ∀ u, MeasurableSet u → ρ (u ∩ sᶜ) ≤ μ.toMeasure (u ∩ sᶜ) := by
+      intro u hu
+      have h2 := (Measure.le_iff.mp hs.ge_on_compl) u hu
+      rwa [Measure.restrict_apply hu, Measure.restrict_apply hu] at h2
+    have hρsc : ρ sᶜ = ENNReal.ofReal (Real.exp ε) * ν.toMeasure sᶜ := by
+      rw [hρdef, Measure.smul_apply, smul_eq_mul]
+    have hδsc : μ.toMeasure sᶜ ≤ ρ sᶜ + (δ : ENNReal) := by
+      rw [hρsc]; exact h sᶜ hsm.compl
+    -- Claim: μ(t∩sᶜ) + ρ(sᶜ) ≤ ρ(t∩sᶜ) + μ(sᶜ).
+    have claim : μ.toMeasure (t ∩ sᶜ) + ρ sᶜ ≤ ρ (t ∩ sᶜ) + μ.toMeasure sᶜ := by
+      have hdecμ : μ.toMeasure sᶜ = μ.toMeasure (t ∩ sᶜ) + μ.toMeasure (sᶜ \ t) := by
+        rw [Set.inter_comm t sᶜ]; exact (measure_inter_add_diff sᶜ ht).symm
+      have hdecρ : ρ sᶜ = ρ (t ∩ sᶜ) + ρ (sᶜ \ t) := by
+        rw [Set.inter_comm t sᶜ]; exact (measure_inter_add_diff sᶜ ht).symm
+      have hC : ρ (sᶜ \ t) ≤ μ.toMeasure (sᶜ \ t) := by
+        have := hρμ tᶜ ht.compl
+        rwa [show tᶜ ∩ sᶜ = sᶜ \ t by rw [Set.diff_eq, Set.inter_comm]] at this
+      rw [hdecμ, hdecρ]
+      calc μ.toMeasure (t ∩ sᶜ) + (ρ (t ∩ sᶜ) + ρ (sᶜ \ t))
+          = ρ (t ∩ sᶜ) + (μ.toMeasure (t ∩ sᶜ) + ρ (sᶜ \ t)) := by ring
+        _ ≤ ρ (t ∩ sᶜ) + (μ.toMeasure (t ∩ sᶜ) + μ.toMeasure (sᶜ \ t)) := by gcongr
+    -- Cancel ρ(sᶜ) (finite) to get μ(t∩sᶜ) ≤ ρ(t∩sᶜ) + δ.
+    have hcancel : μ.toMeasure (t ∩ sᶜ) ≤ ρ (t ∩ sᶜ) + (δ : ENNReal) := by
+      have hstep : μ.toMeasure (t ∩ sᶜ) + ρ sᶜ ≤ (ρ (t ∩ sᶜ) + (δ : ENNReal)) + ρ sᶜ := by
+        calc μ.toMeasure (t ∩ sᶜ) + ρ sᶜ
+            ≤ ρ (t ∩ sᶜ) + μ.toMeasure sᶜ := claim
+          _ ≤ ρ (t ∩ sᶜ) + (ρ sᶜ + δ) := by gcongr
+          _ = (ρ (t ∩ sᶜ) + δ) + ρ sᶜ := by ring
+      exact (ENNReal.add_le_add_iff_right (measure_ne_top ρ sᶜ)).mp hstep
+    -- Assemble: μ(t) = μ(t∩s)+μ(t∩sᶜ) ≤ μ(t∩s)+ρ(t∩sᶜ)+δ = μg(t)+δ.
+    have hμg_apply : (μ.toMeasure.restrict s + ρ.restrict sᶜ) t
+        = μ.toMeasure (t ∩ s) + ρ (t ∩ sᶜ) := by
+      rw [Measure.add_apply, Measure.restrict_apply ht, Measure.restrict_apply ht]
+    have hμ_apply : μ.toMeasure t = μ.toMeasure (t ∩ s) + μ.toMeasure (t ∩ sᶜ) := by
+      rw [← measure_inter_add_diff t hsm, Set.diff_eq]
+    rw [hμ_apply, hμg_apply, add_assoc]
+    exact add_le_add le_rfl hcancel
+
+/-- **Tight basic composition (product form).** If `μ₁ ≤[ε₁,δ₁] ν₁` and
+    `μ₂ ≤[ε₂,δ₂] ν₂` then `μ₁⊗μ₂ ≤[ε₁+ε₂, δ₁+δ₂] ν₁⊗ν₂`.
+
+    This is the standard basic-composition δ bound `δ₁+δ₂`, strictly tighter than
+    the `exp(ε₂)·δ₁+δ₂` obtained by naive iterated integration
+    (`measureClose_prod`). The proof splits each mechanism into a "good" part
+    (dominated by `exp(εᵢ)·νᵢ`) and a "bad" part (total mass ≤ δᵢ); the two bad
+    product terms are each bounded by their mass on the whole space, which is what
+    removes the extra `exp(ε₂)` factor. -/
+theorem measureClose_prod_tight {ε₁ ε₂ δ₁ δ₂ : NNReal}
+    {μ₁ ν₁ : ProbabilityMeasure O₁} {μ₂ ν₂ : ProbabilityMeasure O₂}
+    (h₁ : MeasureClose ε₁ δ₁ μ₁ ν₁) (h₂ : MeasureClose ε₂ δ₂ μ₂ ν₂) :
+    MeasureClose (ε₁ + ε₂) (δ₁ + δ₂) (μ₁.prod μ₂) (ν₁.prod ν₂) := by
+  obtain ⟨g₁, hg1μ, hg1ρ, hg1miss⟩ := measureClose_split h₁
+  obtain ⟨g₂, hg2μ, hg2ρ, hg2miss⟩ := measureClose_split h₂
+  haveI hg1fin : IsFiniteMeasure g₁ := isFiniteMeasure_of_le μ₁.toMeasure hg1μ
+  haveI hg2fin : IsFiniteMeasure g₂ := isFiniteMeasure_of_le μ₂.toMeasure hg2μ
+  set b₁ : Measure O₁ := μ₁.toMeasure - g₁ with hb1
+  set b₂ : Measure O₂ := μ₂.toMeasure - g₂ with hb2
+  haveI hb1fin : IsFiniteMeasure b₁ := isFiniteMeasure_of_le μ₁.toMeasure (by rw [hb1]; exact Measure.sub_le)
+  haveI hb2fin : IsFiniteMeasure b₂ := isFiniteMeasure_of_le μ₂.toMeasure (by rw [hb2]; exact Measure.sub_le)
+  have hdec1 : μ₁.toMeasure = g₁ + b₁ := by
+    rw [hb1, add_comm]; exact (Measure.sub_add_cancel_of_le hg1μ).symm
+  have hdec2 : μ₂.toMeasure = g₂ + b₂ := by
+    rw [hb2, add_comm]; exact (Measure.sub_add_cancel_of_le hg2μ).symm
+  have hb1univ : b₁ Set.univ ≤ (δ₁ : ENNReal) := by
+    rw [hb1, Measure.sub_apply MeasurableSet.univ hg1μ, tsub_le_iff_right, add_comm]
+    exact hg1miss _ MeasurableSet.univ
+  have hb2univ : b₂ Set.univ ≤ (δ₂ : ENNReal) := by
+    rw [hb2, Measure.sub_apply MeasurableSet.univ hg2μ, tsub_le_iff_right, add_comm]
+    exact hg2miss _ MeasurableSet.univ
+  have hg1univ : g₁ Set.univ ≤ 1 := by
+    have := Measure.le_iff'.mp hg1μ Set.univ; rwa [measure_univ (μ := μ₁.toMeasure)] at this
+  intro S hS
+  set c₁ := ENNReal.ofReal (Real.exp ↑ε₁)
+  set c₂ := ENNReal.ofReal (Real.exp ↑ε₂)
+  -- Bilinear expansion: μ₁⊗μ₂ = g₁⊗g₂ + g₁⊗b₂ + b₁⊗μ₂.
+  have hexp : μ₁.toMeasure.prod μ₂.toMeasure
+      = g₁.prod g₂ + g₁.prod b₂ + b₁.prod μ₂.toMeasure := by
+    conv_lhs => rw [hdec1]
+    rw [Measure.add_prod]
+    congr 1
+    conv_lhs => rw [hdec2]
+    rw [Measure.prod_add]
+  -- Good×good term.
+  have hgg : g₁.prod g₂ S ≤
+      ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * (ν₁.toMeasure.prod ν₂.toMeasure) S := by
+    calc g₁.prod g₂ S
+        ≤ ((c₁ • ν₁.toMeasure).prod (c₂ • ν₂.toMeasure)) S := Measure.prod_mono hg1ρ hg2ρ S
+      _ = (c₁ • (ν₁.toMeasure.prod (c₂ • ν₂.toMeasure))) S := by rw [Measure.prod_smul_left]
+      _ = (c₁ • (c₂ • (ν₁.toMeasure.prod ν₂.toMeasure))) S := by rw [Measure.prod_smul_right]
+      _ = ((c₁ * c₂) • (ν₁.toMeasure.prod ν₂.toMeasure)) S := by rw [smul_smul]
+      _ = ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * (ν₁.toMeasure.prod ν₂.toMeasure) S := by
+          rw [Measure.smul_apply, smul_eq_mul]
+          congr 1
+          rw [← ENNReal.ofReal_mul (Real.exp_nonneg _), ← Real.exp_add, NNReal.coe_add]
+  -- Bad terms bounded by their total mass.
+  have hg1b2 : g₁.prod b₂ S ≤ (δ₂ : ENNReal) := by
+    calc g₁.prod b₂ S
+        ≤ g₁.prod b₂ Set.univ := measure_mono (Set.subset_univ S)
+      _ = g₁ Set.univ * b₂ Set.univ := by rw [← Set.univ_prod_univ, Measure.prod_prod]
+      _ ≤ 1 * δ₂ := mul_le_mul' hg1univ hb2univ
+      _ = δ₂ := one_mul _
+  have hb1μ2 : b₁.prod μ₂.toMeasure S ≤ (δ₁ : ENNReal) := by
+    calc b₁.prod μ₂.toMeasure S
+        ≤ b₁.prod μ₂.toMeasure Set.univ := measure_mono (Set.subset_univ S)
+      _ = b₁ Set.univ * μ₂.toMeasure Set.univ := by rw [← Set.univ_prod_univ, Measure.prod_prod]
+      _ = b₁ Set.univ * 1 := by rw [measure_univ (μ := μ₂.toMeasure)]
+      _ ≤ δ₁ * 1 := by gcongr
+      _ = δ₁ := mul_one _
+  -- Assemble.
+  rw [ProbabilityMeasure.toMeasure_prod, ProbabilityMeasure.toMeasure_prod, hexp,
+      Measure.add_apply, Measure.add_apply]
+  calc g₁.prod g₂ S + g₁.prod b₂ S + b₁.prod μ₂.toMeasure S
+      ≤ ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * (ν₁.toMeasure.prod ν₂.toMeasure) S + δ₂ + δ₁ :=
+        add_le_add (add_le_add hgg hg1b2) hb1μ2
+    _ = ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * (ν₁.toMeasure.prod ν₂.toMeasure) S
+          + ((δ₁ : ENNReal) + δ₂) := by ring
+    _ = ENNReal.ofReal (Real.exp ↑(ε₁ + ε₂)) * (ν₁.toMeasure.prod ν₂.toMeasure) S
+          + ((δ₁ + δ₂ : NNReal) : ENNReal) := by rw [ENNReal.coe_add]
+
+/-- **Tight independent composition for approximate DP.** If `M₁` is `(ε₁,δ₁)`-DP
+    and `M₂` is `(ε₂,δ₂)`-DP, their product is `(ε₁+ε₂, δ₁+δ₂)`-DP — the standard
+    basic-composition bound, tighter than `isApproxDP_prod`. -/
+theorem isApproxDP_prod_tight {adj : D → D → Prop}
+    {M₁ : Mechanism D O₁} {M₂ : Mechanism D O₂}
+    {ε₁ ε₂ δ₁ δ₂ : NNReal}
+    (h₁ : IsApproxDP adj M₁ ε₁ δ₁) (h₂ : IsApproxDP adj M₂ ε₂ δ₂) :
+    IsApproxDP adj (M₁.prod M₂) (ε₁ + ε₂) (δ₁ + δ₂) := by
+  intro d₁ d₂ hadj
+  exact measureClose_prod_tight (h₁ d₁ d₂ hadj) (h₂ d₁ d₂ hadj)
 
 /-- Independent composition for pure DP via product mechanism:
     If M₁ is ε₁-DP and M₂ is ε₂-DP, their product mechanism

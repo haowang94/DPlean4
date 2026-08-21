@@ -35,6 +35,11 @@ variable {D O : Type*} [MeasurableSpace O]
 databases, the output distributions are (ε,δ)-close.
 
 The approximation parameter δ allows for a small probability of privacy failure.
+
+Like `IsPureDP`, this predicate is **directed**: it constrains `M d₁` against
+`M d₂` only in the direction `adj d₁ d₂`. The two-sided guarantee follows
+automatically for symmetric adjacency; for a nonsymmetric custom relation,
+establish both directions explicitly.
 -/
 def IsApproxDP (adj : D → D → Prop) (M : Mechanism D O) (ε δ : NNReal) : Prop :=
   ∀ d₁ d₂, adj d₁ d₂ → MeasureClose ε δ (M d₁) (M d₂)

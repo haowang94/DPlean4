@@ -47,10 +47,31 @@ noncomputable def renyiMoment (α : ℝ) (μ ν : Measure Ω) : ℝ≥0∞ :=
 
 /-- Real-valued Rényi-divergence formula. This projection is mathematically
     meaningful only with `1 < α`, `μ ≪ ν`, and a finite Rényi moment.
-    Privacy predicates bundle those obligations; callers handling arbitrary
-    measures should use `renyiMoment` in `ℝ≥0∞` instead. -/
+
+    **Totalization warning.** This is a *total* real-valued function, so it
+    returns a value even when the true divergence is infinite: if the moment is
+    `⊤` then `(⊤ : ℝ≥0∞).toReal = 0` and `Real.log 0 = 0`, so `renyiDivergence`
+    collapses to `0` — see `renyiDivergence_of_moment_top`. A `0` returned by
+    this function therefore does **not** by itself certify small divergence.
+
+    Safe interfaces, all requiring the finiteness/absolute-continuity guards:
+    * `renyiDivergence_le_iff` — the guarded comparison `D_α ≤ ε ↔ moment ≤ …`;
+    * the `IsZCDP`/`IsRenyiDP` structures bundle absolute continuity and
+      moment finiteness (`.ac`, `.fin`) alongside the bound.
+    Callers handling arbitrary measures should compare `renyiMoment` in `ℝ≥0∞`
+    directly, or use one of the guarded interfaces above. -/
 noncomputable def renyiDivergence (α : ℝ) (μ ν : Measure Ω) : ℝ :=
   (α - 1)⁻¹ * Real.log (renyiMoment α μ ν).toReal
+
+/-- **Totalization pitfall (named for visibility).** When the Rényi moment is
+    infinite, the real-valued `renyiDivergence` is `0`, not `∞`. Any result about
+    `renyiDivergence` on possibly-non-absolutely-continuous or heavy-tailed
+    measures must rule this case out (e.g. via a finiteness hypothesis or an
+    `IsZCDP.fin`/`IsRenyiDP` field). -/
+theorem renyiDivergence_of_moment_top {μ ν : Measure Ω} {α : ℝ}
+    (hfin : renyiMoment α μ ν = ⊤) :
+    renyiDivergence α μ ν = 0 := by
+  simp [renyiDivergence, hfin, toReal_top, Real.log_zero]
 
 /-- The Rényi moment of order 1 equals 1 for probability measures when μ ≪ ν. -/
 theorem renyiMoment_one {μ ν : Measure Ω} [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
@@ -105,7 +126,12 @@ theorem renyiMoment_ge_one {μ ν : Measure Ω} [IsProbabilityMeasure μ]
   rw [hleft, hright] at holder
   rwa [← one_rpow (1 / α : ℝ), rpow_le_rpow_iff hα_inv_pos] at holder
 
-/-- The Rényi divergence is non-negative for probability measures. -/
+/-- The Rényi divergence is non-negative for probability measures.
+
+    Caveat: in the infinite-moment case this holds *trivially* because
+    `renyiDivergence` is `0` there (see `renyiDivergence_of_moment_top`), not
+    because the divergence is genuinely small. Do not read this lemma as evidence
+    that the divergence is finite. -/
 theorem renyiDivergence_nonneg {μ ν : Measure Ω} [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
     {α : ℝ} (hα : 1 < α) (hac : μ ≪ ν) :
     0 ≤ renyiDivergence α μ ν := by

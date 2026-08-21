@@ -49,11 +49,11 @@ theorem categoryScore_sensitivity (i : Fin 3) :
 /-- Report noisy max privately chooses the most frequent of three categories.
     The bound is independent of the number of candidates. -/
 def privateMostFrequent (ε : ℝ≥0) : Mechanism (List (Fin 3)) (Fin 3) :=
-  reportNoisyMax (fun i => categoryScore i) ε 1
+  exponentialArgmax (fun i => categoryScore i) ε 1
 
 theorem privateMostFrequent_isPureDP (ε : ℝ≥0) :
     IsPureDP ListAddRemove (privateMostFrequent ε) ε :=
-  reportNoisyMax_isPureDP (by norm_num) categoryScore_sensitivity
+  exponentialArgmax_isPureDP (by norm_num) categoryScore_sensitivity
 
 /-! ## Heterogeneous release and concentrated-DP conversion -/
 

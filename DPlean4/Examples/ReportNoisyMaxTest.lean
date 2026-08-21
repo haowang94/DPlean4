@@ -17,7 +17,7 @@ Dwork & Roth (2014), Section 3.3.
 
 * `histogram_bin_select`: Privately select the largest bin in a histogram
 * `best_query_select_3`: Select the best of 3 queries with ε-DP
-* `reportNoisyMax_monotone`: DP monotonicity for Report Noisy Max
+* `exponentialArgmax_monotone`: DP monotonicity for Report Noisy Max
 -/
 
 noncomputable section
@@ -64,9 +64,9 @@ private theorem histogramBin_sens (ps : Fin n → α → Bool) (i : Fin n) :
 theorem histogram_bin_select (ps : Fin n → α → Bool) [Nonempty (Fin n)]
     (ε : NNReal) :
     IsPureDP ListHeadAddRemove
-      (reportNoisyMax (fun i (l : List α) => (l.countP (ps i) : ℝ)) ε 1)
+      (exponentialArgmax (fun i (l : List α) => (l.countP (ps i) : ℝ)) ε 1)
       ε :=
-  reportNoisyMax_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) (histogramBin_sens ps)
+  exponentialArgmax_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) (histogramBin_sens ps)
 
 -- ============================================================================
 -- Example 2: Best of 3 queries
@@ -95,21 +95,37 @@ private theorem threeQueries_sens (i : Fin 3) :
     Demonstrates Report Noisy Max with a small, concrete query set. -/
 theorem best_query_select_3 (ε : NNReal) :
     IsPureDP ListHeadAddRemove
-      (reportNoisyMax (threeQueries (α := α)) ε 1)
+      (exponentialArgmax (threeQueries (α := α)) ε 1)
       ε :=
-  reportNoisyMax_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) threeQueries_sens
+  exponentialArgmax_isPureDP (by norm_num : (1 : ℝ≥0) ≠ 0) threeQueries_sens
 
 -- ============================================================================
 -- Example 3: DP monotonicity
 -- ============================================================================
 
 /-- ε-DP Report Noisy Max implies ε'-DP for ε' ≥ ε. -/
-theorem reportNoisyMax_monotone (ps : Fin n → α → Bool) [Nonempty (Fin n)]
+theorem exponentialArgmax_monotone (ps : Fin n → α → Bool) [Nonempty (Fin n)]
     {ε₁ ε₂ : NNReal} (hle : ε₁ ≤ ε₂) :
     IsPureDP ListHeadAddRemove
-      (reportNoisyMax (fun i (l : List α) => (l.countP (ps i) : ℝ)) ε₁ 1)
+      (exponentialArgmax (fun i (l : List α) => (l.countP (ps i) : ℝ)) ε₁ 1)
       ε₂ :=
   isPureDP_mono (histogram_bin_select ps ε₁) hle
+
+-- ============================================================================
+-- Example 4: Classical (add-Laplace-noise-then-argmax) Report Noisy Max
+-- ============================================================================
+
+/-- **Classical Report Noisy Max over 3 queries, ε-DP.**
+
+    Adds independent Laplace noise to each of the three scores and returns the
+    argmax index. Noise is calibrated to the score vector's L1 sensitivity
+    (`3·1`), so this is the faithful noise+argmax form (looser constant than the
+    tight textbook `2Δ` analysis; see `Mechanism/ReportNoisyMax.lean`). -/
+theorem classical_best_query_select_3 (ε : NNReal) (hε : ε ≠ 0) :
+    IsPureDP ListHeadAddRemove
+      (classicalReportNoisyMax (threeQueries (α := α)) 1 ε)
+      ε :=
+  classicalReportNoisyMax_isPureDP hε threeQueries_sens
 
 end DPlean4.Examples
 

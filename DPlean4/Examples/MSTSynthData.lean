@@ -28,6 +28,19 @@ MST follows the Select-Measure-Generate paradigm:
 4. **Generate (post-processing)**: Fit a graphical model (Private-PGM) to noisy
    marginals and sample synthetic data. No privacy cost.
 
+## Scope of this formalization
+
+The prose above describes the full MST algorithm, in which the Phase-2 selection
+is **data-dependent** on the noisy Phase-1 output. The theorems in this file do
+**not** yet model that dependence: `mstMeasurePhase`/`mstFixedSelection_isZCDP` take
+`selectedMarginals` as a *fixed parameter* and compose the two phases with the
+non-adaptive product rule (`isZCDP_prod`). The stated bound is correct for any
+fixed selection, but it is not a proof of the end-to-end data-dependent pipeline.
+Faithfully capturing data-dependent selection requires modelling Phase 2 as a
+continuation of Phase 1's output and composing with the adaptive rule
+`isZCDP_seq` (`DPlean4/Privacy/ZCDP.lean`); this is done in `mstAdaptive_isZCDP`
+below, which is the faithful data-dependent select-measure formalization.
+
 ## Privacy Analysis
 
 - Phase 1: C(d,2) = d(d-1)/2 independent Gaussian mechanisms, each ρ-zCDP → total C(d,2)·ρ
@@ -38,7 +51,8 @@ MST follows the Select-Measure-Generate paradigm:
 ## References
 
 * McKenna, Sheldon, Miklau (2021), "Winning the NIST Contest"
-* Bun & Dwork (2016), "Concentrated Differential Privacy"
+* Bun & Steinke (2016), "Concentrated Differential Privacy: Simplifications,
+  Extensions, and Lower Bounds"
 -/
 
 noncomputable section
@@ -108,13 +122,19 @@ theorem mstMeasurePhase_isZCDP {k : ℕ} (selectedMarginals : Fin k → Attr × 
 -- Full MST Privacy Theorem
 -- ============================================================================
 
-/-- **MST satisfies (ρ₁ + ρ₂)-zCDP** where ρ₁ is the MI estimation cost and
-    ρ₂ is the marginal measurement cost.
+/-- **MST with a fixed marginal selection satisfies (ρ₁ + ρ₂)-zCDP**, where ρ₁ is
+    the MI estimation cost and ρ₂ is the marginal measurement cost.
+
+    Note (scope): `selectedMarginals` here is a *fixed parameter*, and the two
+    phases are composed with the non-adaptive product rule. The bound holds for
+    any fixed selection, but this is not the end-to-end data-dependent MST
+    pipeline (which would select from the noisy Phase-1 output and require
+    adaptive composition via `isZCDP_seq`). See the module docstring.
 
     This formalization parameterizes by per-marginal noise variance v₁, v₂.
     The published MST paper parameterizes by total budget ρ₁, ρ₂ and derives
     v₁ = C(d,2)/(2ρ₁) and v₂ = (d-1)/(2ρ₂). Both are equivalent. -/
-theorem mst_isZCDP {d k : ℕ} (attrs : Fin d → Attr)
+theorem mstFixedSelection_isZCDP {d k : ℕ} (attrs : Fin d → Attr)
     [∀ i, Fintype (dom (attrs i))]
     (selectedMarginals : Fin k → Attr × Attr)
     [∀ i, Fintype (dom (selectedMarginals i).1)]
@@ -126,6 +146,45 @@ theorem mst_isZCDP {d k : ℕ} (attrs : Fin d → Attr)
        (∑ _ : Fin k, (1 : ℝ≥0) ^ 2 / (2 * v₂))) :=
   isZCDP_prod (mstMIPhase_isZCDP attrs hv₁)
     (mstMeasurePhase_isZCDP selectedMarginals hv₂)
+
+/-- **Adaptive MST is (ρ₁ + ρ₂)-zCDP.**
+
+    This is the faithful *data-dependent* formalization. Phase 1 (`mstMIPhase`)
+    produces the noisy pairwise measurements `o₁`, and the continuation `K` uses
+    `o₁` to **select** which marginals to measure and then measures them. Selection
+    is arbitrary post-processing of `o₁` (no privacy cost), and the modelling
+    assumption is that for *every* first-stage output `o₁` the resulting Phase-2
+    measurement is uniformly `ρ₂`-zCDP (`hK_zcdp`) — which holds for MST because
+    the Gaussian measurement cost is the same regardless of which marginals were
+    selected. Adaptive composition (`isZCDP_seq`) then yields the `(ρ₁ + ρ₂)`
+    bound for the genuinely sequential mechanism `mstMIPhase.seq K`.
+
+    Unlike `mstFixedSelection_isZCDP`, the selection here is a function of the
+    Phase-1 output, so this captures the real select-measure pipeline.
+
+    The hypotheses `hK`, `hK_meas` are the standard Markov-kernel regularity
+    conditions on the continuation (measurability of the kernel `o₁ ↦ K o₁`);
+    for a finite first-stage output type they are automatic (`isZCDP_seqFinite`),
+    but Phase 1's output here is continuous, so they are supplied explicitly. -/
+theorem mstAdaptive_isZCDP {d : ℕ} (attrs : Fin d → Attr)
+    [∀ i, Fintype (dom (attrs i))]
+    {O₂ : Type*} [MeasurableSpace O₂]
+    [MeasurableSpace.CountableOrCountablyGenerated
+      (∀ p : {p : Fin d × Fin d // p.1 < p.2},
+        dom (attrs p.val.1) × dom (attrs p.val.2) → ℝ) O₂]
+    (K : (∀ p : {p : Fin d × Fin d // p.1 < p.2},
+          dom (attrs p.val.1) × dom (attrs p.val.2) → ℝ) →
+        Mechanism (TabularDataset Attr dom) O₂)
+    {v₁ : ℝ≥0} (hv₁ : v₁ ≠ 0) {ρ₂ : NNReal}
+    (hK_zcdp : ∀ o₁, IsZCDP (@ListHeadAddRemove (TabularRow Attr dom)) (K o₁) ρ₂)
+    (hK : ∀ dd, AEMeasurable
+      (fun o₁ => ((K o₁ dd).toMeasure).map (Prod.mk o₁))
+      ((mstMIPhase attrs v₁) dd).toMeasure)
+    (hK_meas : ∀ dd, Measurable (fun o₁ => (K o₁ dd).toMeasure)) :
+    IsZCDP (@ListHeadAddRemove (TabularRow Attr dom))
+      ((mstMIPhase attrs v₁).seq K hK)
+      ((∑ _ : {p : Fin d × Fin d // p.1 < p.2}, (1 : ℝ≥0) ^ 2 / (2 * v₁)) + ρ₂) :=
+  isZCDP_seq (mstMIPhase_isZCDP attrs hv₁) hK_zcdp hK hK_meas
 
 /-- MST with post-processing still satisfies the same zCDP bound. -/
 theorem mst_postprocess_isZCDP {d k : ℕ} (attrs : Fin d → Attr)
@@ -140,7 +199,7 @@ theorem mst_postprocess_isZCDP {d k : ℕ} (attrs : Fin d → Attr)
         hf.aemeasurable)
       ((∑ _ : {p : Fin d × Fin d // p.1 < p.2}, (1 : ℝ≥0) ^ 2 / (2 * v₁)) +
        (∑ _ : Fin k, (1 : ℝ≥0) ^ 2 / (2 * v₂))) :=
-  isZCDP_postprocess (mst_isZCDP attrs selectedMarginals hv₁ hv₂) hf
+  isZCDP_postprocess (mstFixedSelection_isZCDP attrs selectedMarginals hv₁ hv₂) hf
 
 /-- **MST satisfies (ε,δ)-approximate DP** via the zCDP → approxDP conversion. -/
 theorem mst_isApproxDP {d k : ℕ} (attrs : Fin d → Attr)
@@ -160,7 +219,7 @@ theorem mst_isApproxDP {d k : ℕ} (attrs : Fin d → Attr)
             Real.log (1 / ↑δ))) :
     IsApproxDP (@ListHeadAddRemove (TabularRow Attr dom))
       ((mstMIPhase attrs v₁).prod (mstMeasurePhase selectedMarginals v₂)) ε δ :=
-  isApproxDP_of_isZCDP (mst_isZCDP attrs selectedMarginals hv₁ hv₂) hρ hδ hδ1 hε
+  isApproxDP_of_isZCDP (mstFixedSelection_isZCDP attrs selectedMarginals hv₁ hv₂) hρ hδ hδ1 hε
 
 -- ============================================================================
 -- Concrete Example: 5-attribute dataset
@@ -181,7 +240,7 @@ example (attrs : Fin 5 → Attr) [∀ i, Fintype (dom (attrs i))]
       ((mstMIPhase attrs (100 : ℝ≥0)).prod (mstMeasurePhase selected (100 : ℝ≥0)))
       ((∑ _ : {p : Fin 5 × Fin 5 // p.1 < p.2}, (1 : ℝ≥0) ^ 2 / (2 * 100)) +
        (∑ _ : Fin 4, (1 : ℝ≥0) ^ 2 / (2 * 100))) :=
-  mst_isZCDP attrs selected (by norm_num) (by norm_num)
+  mstFixedSelection_isZCDP attrs selected (by norm_num) (by norm_num)
 
 end ConcreteExample
 

@@ -113,6 +113,20 @@ theorem approxDP_compose_explicit_delta (δ : NNReal) :
     (isApproxDP_of_isPureDP δ countLaplace_pureDP)
     (isApproxDP_of_isPureDP δ countLaplace_pureDP)
 
+/-- **Tight basic composition: δ₁ + δ₂.**
+
+    The same two (1,δ)-DP mechanisms compose to (2, δ+δ)-DP via
+    `isApproxDP_prod_tight` — strictly tighter in δ than
+    `approxDP_compose_explicit_delta` above (no `exp(ε₂)` factor on δ₁). -/
+theorem approxDP_compose_tight_delta (δ : NNReal) :
+    IsApproxDP ListHeadAddRemove
+      ((countLaplace (α := α)).prod countLaplace)
+      ((1 : ℝ≥0) + (1 : ℝ≥0))
+      (δ + δ) :=
+  isApproxDP_prod_tight
+    (isApproxDP_of_isPureDP δ countLaplace_pureDP)
+    (isApproxDP_of_isPureDP δ countLaplace_pureDP)
+
 -- ============================================================================
 -- Example 4: Composition preserves group privacy
 -- ============================================================================

@@ -1,6 +1,6 @@
 # DPlean4: Differential Privacy in Lean 4
 
-A formally verified library for differential privacy, built on [Lean 4](https://lean-lang.org/) and [Mathlib](https://leanprover-community.github.io/mathlib4_docs/). All theorems are machine-checked — if it compiles, the proofs are correct.
+A formally verified library for differential privacy, built on [Lean 4](https://lean-lang.org/) and [Mathlib](https://leanprover-community.github.io/mathlib4_docs/). Every proof is machine-checked by Lean's kernel. Note the usual caveat of formal verification: Lean checks that each proof establishes its stated theorem, not that the theorem statement faithfully encodes the intended algorithm or the standard mathematical definition — read the definitions, not just the theorem names.
 
 ## What's Included
 
@@ -8,25 +8,27 @@ A formally verified library for differential privacy, built on [Lean 4](https://
 - Pure ε-DP
 - Approximate (ε, δ)-DP
 - Rényi DP (Mironov 2017)
-- Zero-concentrated DP (Bun & Dwork 2016)
+- Zero-concentrated DP (Bun & Steinke 2016)
 - Conversions between all notions (pure DP → zCDP → RDP → approximate DP)
+
+All DP predicates are **directed**: they quantify over ordered pairs `adj d₁ d₂` and constrain the output distributions in that one direction. The usual two-sided guarantee follows automatically only when the adjacency relation is symmetric (as built-in relations like add/remove and replace are); with an arbitrary custom relation, supply both directions.
 
 ### Mechanisms
 - **Laplace** — scalar and vector, pure ε-DP
 - **Gaussian** — scalar and vector, ρ-zCDP and (ε, δ)-DP
 - **Exponential** (McSherry & Talwar 2007) — ε-DP
-- **Sparse Vector Technique** — Above Threshold with ε-DP
-- **Report Noisy Max** — via exponential mechanism
-- **Randomized Response**
+- **Sparse Vector Technique** — single-query Above Threshold, ε-DP (general multi-query SVT is future work)
+- **Report Noisy Max** — exponential-mechanism argmax (equivalently, Gumbel-noise RNM) and a classical add-Laplace-noise-then-argmax variant
+- **Randomized Response** — classic ε-calibration (truth probability `exp(ε)/(exp(ε)+1)`)
 
 ### Composition and Amplification
-- Sequential composition (pure and approximate DP)
+- Independent composition (pure and approximate DP)
 - Parallel composition (disjoint data → max instead of sum)
 - zCDP composition with conversion: ρ → (ε, δ)-DP
 - n-fold product composition over finite index types
 - Group privacy (k-hop adjacency chains)
 - Postprocessing preservation (all DP notions)
-- Subsampling amplification bounds
+- Subsampling: directed measure-level mixture bounds (not yet a mechanism-level amplification theorem — see `Privacy/Subsampling.lean`)
 
 ### Foundations
 - Generic adjacency relations (add/remove, replace)
@@ -90,8 +92,10 @@ DPlean4/
 | `laplaceMech_isPureDP` | Laplace mechanism satisfies ε-DP |
 | `gaussianMech_isZCDP` | Gaussian mechanism satisfies ρ-zCDP |
 | `expMech_isPureDP` | Exponential mechanism satisfies ε-DP |
-| `isPureDP_prod` | Sequential composition: ε₁ + ε₂ |
-| `isZCDP_prod` | zCDP composition: ρ₁ + ρ₂ |
+| `isPureDP_prod` | Independent composition: ε₁ + ε₂ |
+| `isApproxDP_prod_tight` | Approx. basic composition: (ε₁+ε₂, δ₁+δ₂) |
+| `isZCDP_prod` | zCDP independent composition: ρ₁ + ρ₂ |
+| `isZCDP_seqFinite` | Adaptive zCDP composition: ρ₁ + ρ₂ |
 | `isPureDP_parallel` | Parallel composition: max(ε₁, ε₂) |
 | `isPureDP_postprocess` | Postprocessing preserves DP |
 | `isApproxDP_of_isZCDP` | zCDP → (ε, δ)-DP conversion |

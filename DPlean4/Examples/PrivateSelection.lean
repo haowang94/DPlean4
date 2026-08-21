@@ -73,7 +73,7 @@ theorem modelScore_sensitivity {n : ℕ} {scores : Fin n → List α → ℝ} {�
     privately select the best one using the exponential mechanism. -/
 def privateModelSelect {n : ℕ} [Nonempty (Fin n)] (scores : Fin n → List α → ℝ)
     (ε : NNReal) (Δ : ℝ≥0) : Mechanism (List α) (Fin n) :=
-  reportNoisyMax scores ε Δ
+  exponentialArgmax scores ε Δ
 
 /-- **Private model selection is ε-DP.**
 
@@ -88,7 +88,7 @@ theorem privateModelSelect_isPureDP {n : ℕ} [Nonempty (Fin n)]
     {Δ : ℝ≥0} (hΔ : Δ ≠ 0) {ε : NNReal}
     (hsens : ∀ i, HasL1Sensitivity ListHeadAddRemove (scores i) Δ) :
     IsPureDP ListHeadAddRemove (privateModelSelect scores ε Δ) ε :=
-  reportNoisyMax_isPureDP hΔ hsens
+  exponentialArgmax_isPureDP hΔ hsens
 
 -- ============================================================================
 -- Concrete example: selecting from 3 models

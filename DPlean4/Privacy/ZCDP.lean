@@ -382,6 +382,18 @@ private instance contKernel_isMarkov [Fintype O₁] [MeasurableSingletonClass O�
     (K : O₁ → Mechanism D O₂) (d : D) : IsMarkovKernel (contKernel K d) :=
   ⟨fun a => by change IsProbabilityMeasure (K a d).toMeasure; infer_instance⟩
 
+private noncomputable def contKernelOfMeas
+    (K : O₁ → Mechanism D O₂) (d : D)
+    (h : Measurable (fun o₁ => (K o₁ d).toMeasure)) : Kernel O₁ O₂ where
+  toFun o₁ := (K o₁ d).toMeasure
+  measurable' := h
+
+private instance contKernelOfMeas_isMarkov
+    (K : O₁ → Mechanism D O₂) (d : D)
+    (h : Measurable (fun o₁ => (K o₁ d).toMeasure)) :
+    IsMarkovKernel (contKernelOfMeas K d h) :=
+  ⟨fun a => by change IsProbabilityMeasure (K a d).toMeasure; infer_instance⟩
+
 private lemma seqFinite_eq_compProd [Fintype O₁] [MeasurableSingletonClass O₁]
     (M₁ : Mechanism D O₁) (K : O₁ → Mechanism D O₂) (d : D) :
     (M₁.seqFinite K d).toMeasure = (M₁ d).toMeasure ⊗ₘ contKernel K d := by
@@ -390,6 +402,21 @@ private lemma seqFinite_eq_compProd [Fintype O₁] [MeasurableSingletonClass O�
     (fun o₁ => ((K o₁ d).toMeasure).map (Prod.mk o₁))) s = _
   rw [Measure.bind_apply hs (measurable_of_finite _).aemeasurable,
       Measure.compProd_apply hs]
+  congr 1; ext o₁
+  exact Measure.map_apply measurable_prodMk_left hs
+
+private lemma seq_eq_compProd
+    {M₁ : Mechanism D O₁} {K : O₁ → Mechanism D O₂}
+    (hK : ∀ d, AEMeasurable (fun o₁ => ((K o₁ d).toMeasure).map (Prod.mk o₁))
+      (M₁ d).toMeasure)
+    (hK_meas : ∀ d, Measurable (fun o₁ => (K o₁ d).toMeasure))
+    (d : D) :
+    (M₁.seq K hK d).toMeasure =
+      (M₁ d).toMeasure ⊗ₘ contKernelOfMeas K d (hK_meas d) := by
+  ext s hs
+  change ((M₁ d).toMeasure.bind
+    (fun o₁ => ((K o₁ d).toMeasure).map (Prod.mk o₁))) s = _
+  rw [Measure.bind_apply hs (hK d), Measure.compProd_apply hs]
   congr 1; ext o₁
   exact Measure.map_apply measurable_prodMk_left hs
 
@@ -494,6 +521,79 @@ private lemma renyiMoment_seqFinite_le [Fintype O₁] [MeasurableSingletonClass 
             (ENNReal.continuous_rpow_const.measurable.comp (Measure.measurable_rnDeriv μ₁ μ₂))
     _ = (∫⁻ o₁, (μ₁.rnDeriv μ₂ o₁) ^ α ∂μ₂) * B := mul_comm _ _
 
+private lemma renyiMoment_seq_le
+    [MeasurableSpace.CountableOrCountablyGenerated O₁ O₂]
+    {M₁ : Mechanism D O₁} {K : O₁ → Mechanism D O₂}
+    {d₁ d₂ : D}
+    (hac_μ : (M₁ d₁).toMeasure ≪ (M₁ d₂).toMeasure)
+    (hac_κ : ∀ o₁, (K o₁ d₁).toMeasure ≪ (K o₁ d₂).toMeasure)
+    {α : ℝ} (hα : 1 < α)
+    {B : ℝ≥0∞} (hB : ∀ o₁, renyiMoment α (K o₁ d₁).toMeasure (K o₁ d₂).toMeasure ≤ B)
+    (hK : ∀ d, AEMeasurable (fun o₁ => ((K o₁ d).toMeasure).map (Prod.mk o₁))
+      (M₁ d).toMeasure)
+    (hK_meas : ∀ d, Measurable (fun o₁ => (K o₁ d).toMeasure)) :
+    renyiMoment α (M₁.seq K hK d₁).toMeasure (M₁.seq K hK d₂).toMeasure ≤
+      renyiMoment α (M₁ d₁).toMeasure (M₁ d₂).toMeasure * B := by
+  set μ₁ := (M₁ d₁).toMeasure
+  set μ₂ := (M₁ d₂).toMeasure
+  set κ₁ := contKernelOfMeas K d₁ (hK_meas d₁)
+  set κ₂ := contKernelOfMeas K d₂ (hK_meas d₂)
+  have hα_pos : (0 : ℝ) < α := by linarith
+  have hα_nn : (0 : ℝ) ≤ α := hα_pos.le
+  have hac_κ' : ∀ o₁, κ₁ o₁ ≪ κ₂ o₁ := hac_κ
+  have h_ac_same : μ₁ ⊗ₘ κ₁ ≪ μ₁ ⊗ₘ κ₂ :=
+    Measure.AbsolutelyContinuous.compProd_right (ae_of_all _ hac_κ')
+  have hm_F_rpow : Measurable (fun x : O₁ × O₂ => (μ₁.rnDeriv μ₂ x.1) ^ α) :=
+    ENNReal.continuous_rpow_const.measurable.comp
+      ((Measure.measurable_rnDeriv μ₁ μ₂).comp measurable_fst)
+  have hm_C : Measurable ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂)) :=
+    Measure.measurable_rnDeriv _ _
+  have hm_C_rpow : Measurable (fun x : O₁ × O₂ =>
+      ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂) x) ^ α) :=
+    ENNReal.continuous_rpow_const.measurable.comp hm_C
+  have h_factor := rnDeriv_compProd h_ac_same μ₂
+  have h_fiber := ae_ae_of_ae_compProd (rnDeriv_compProd_same_marginal (μ := μ₁) hac_κ')
+  have h_inner_le : ∀ᵐ o₁ ∂μ₁,
+      ∫⁻ o₂, ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂) (o₁, o₂)) ^ α ∂(κ₂ o₁) ≤ B := by
+    filter_upwards [h_fiber] with o₁ ho₁
+    calc ∫⁻ o₂, ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂) (o₁, o₂)) ^ α ∂(κ₂ o₁)
+        = ∫⁻ o₂, (Kernel.rnDeriv κ₁ κ₂ o₁ o₂) ^ α ∂(κ₂ o₁) :=
+          lintegral_congr_ae (ho₁.mono fun o₂ ho₂ => by simp only [ho₂])
+      _ = ∫⁻ o₂, ((κ₁ o₁).rnDeriv (κ₂ o₁) o₂) ^ α ∂(κ₂ o₁) :=
+          lintegral_congr_ae ((kernel_rnDeriv_eq_measure_rnDeriv (hac_κ' o₁)).mono
+            fun o₂ ho₂ => by simp only [ho₂])
+      _ ≤ B := hB o₁
+  have h_transfer := ae_rnDeriv_ne_zero_imp_of_ae (ν := μ₂) h_inner_le
+  have hrw₁ : (M₁.seq K hK d₁).toMeasure = μ₁ ⊗ₘ κ₁ := seq_eq_compProd hK hK_meas d₁
+  have hrw₂ : (M₁.seq K hK d₂).toMeasure = μ₂ ⊗ₘ κ₂ := seq_eq_compProd hK hK_meas d₂
+  simp only [renyiMoment, hrw₁, hrw₂]
+  calc ∫⁻ x, ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₂ ⊗ₘ κ₂) x) ^ α ∂(μ₂ ⊗ₘ κ₂)
+      = ∫⁻ x, (μ₁.rnDeriv μ₂ x.1 * (μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂) x) ^ α
+          ∂(μ₂ ⊗ₘ κ₂) :=
+        lintegral_congr_ae (h_factor.mono fun x hx => by simp only [hx])
+    _ = ∫⁻ x, (μ₁.rnDeriv μ₂ x.1) ^ α * ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂) x) ^ α
+          ∂(μ₂ ⊗ₘ κ₂) := by
+        congr 1; ext x; exact ENNReal.mul_rpow_of_nonneg _ _ hα_nn
+    _ = ∫⁻ o₁, ∫⁻ o₂, (μ₁.rnDeriv μ₂ o₁) ^ α *
+          ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂) (o₁, o₂)) ^ α ∂(κ₂ o₁) ∂μ₂ :=
+        lintegral_compProd (hm_F_rpow.mul hm_C_rpow)
+    _ = ∫⁻ o₁, (μ₁.rnDeriv μ₂ o₁) ^ α *
+          ∫⁻ o₂, ((μ₁ ⊗ₘ κ₁).rnDeriv (μ₁ ⊗ₘ κ₂) (o₁, o₂)) ^ α ∂(κ₂ o₁) ∂μ₂ := by
+        congr 1; ext o₁
+        exact lintegral_const_mul _ (hm_C_rpow.comp measurable_prodMk_left)
+    _ ≤ ∫⁻ o₁, (μ₁.rnDeriv μ₂ o₁) ^ α * B ∂μ₂ := by
+        apply lintegral_mono_ae
+        filter_upwards [h_transfer] with o₁ ho₁
+        by_cases hF : μ₁.rnDeriv μ₂ o₁ = 0
+        · simp [hF, ENNReal.zero_rpow_of_pos hα_pos]
+        · exact mul_le_mul' le_rfl (ho₁ hF)
+    _ = B * ∫⁻ o₁, (μ₁.rnDeriv μ₂ o₁) ^ α ∂μ₂ := by
+        trans (∫⁻ o₁, B * (μ₁.rnDeriv μ₂ o₁) ^ α ∂μ₂)
+        · exact lintegral_congr fun o₁ => mul_comm _ _
+        · exact lintegral_const_mul _
+            (ENNReal.continuous_rpow_const.measurable.comp (Measure.measurable_rnDeriv μ₁ μ₂))
+    _ = (∫⁻ o₁, (μ₁.rnDeriv μ₂ o₁) ^ α ∂μ₂) * B := mul_comm _ _
+
 /-- **Adaptive composition for zCDP**: if M₁ is ρ₁-zCDP and for every
     first-stage output o₁, the continuation K(o₁) is ρ₂-zCDP (uniformly),
     then the sequential composition `M₁.seq K` is (ρ₁+ρ₂)-zCDP.
@@ -505,22 +605,29 @@ private lemma renyiMoment_seqFinite_le [Fintype O₁] [MeasurableSingletonClass 
     is exactly what holds in AIM: the Gaussian measurement has the same
     privacy cost regardless of which marginal was selected.
 
-    The proof uses the chain rule for Rényi divergence on composition products:
-    D_α(P₁ ⊗ K₁ ‖ P₂ ⊗ K₂) = D_α(P₁ ‖ P₂) + E_{P₁}[D_α(K₁(·) ‖ K₂(·))]
-                               ≤ ρ₁α + ρ₂α = (ρ₁+ρ₂)α
+    The proof works with Rényi *moments* in `ℝ≥0∞`, not with an additive
+    divergence chain rule. (Rényi divergence does not satisfy the additive
+    conditional chain rule that KL divergence does, so no equation of the form
+    `D_α(P₁ ⊗ K₁ ‖ P₂ ⊗ K₂) = D_α(P₁ ‖ P₂) + E_{P₁}[D_α(K₁ ‖ K₂)]` is used or
+    valid here.) Instead `renyiMoment_seq_le` proves the multiplicative bound
+        M_α(seq · d₁ ‖ seq · d₂) ≤ M_α(M₁ d₁ ‖ M₁ d₂) · B,
+    where `B = exp((α−1)·ρ₂·α)` is a *uniform* bound on every continuation's
+    moment `M_α(K o₁ d₁ ‖ K o₁ d₂)` (obtained from `h₂ o₁`). Taking logs turns
+    this product into the sum of the ρ₁α and ρ₂α budgets:
+        D_α(seq · d₁ ‖ seq · d₂) ≤ ρ₁α + ρ₂α = (ρ₁+ρ₂)α.
 
-    The `ac` field is proven directly via `Measure.bind_apply`.
-    The `fin` and `bound` fields use `sorry`: they require constructing a
-    `Kernel` from the `AEMeasurable` continuation to access `compProd`
-    machinery (`rnDeriv_compProd`, `lintegral_compProd`). Mathlib has no
-    generic AEMeasurable-to-Kernel construction. For finite first-stage
-    output types, use `isZCDP_seqFinite` instead (fully proven). -/
-theorem isZCDP_seq {adj : D → D → Prop}
+    The `hK_meas` hypothesis provides kernel-level measurability of the
+    continuation, enabling `compProd` decomposition. For finite first-stage
+    output types, use `isZCDP_seqFinite` which discharges this automatically. -/
+theorem isZCDP_seq
+    [MeasurableSpace.CountableOrCountablyGenerated O₁ O₂]
+    {adj : D → D → Prop}
     {M₁ : Mechanism D O₁} {K : O₁ → Mechanism D O₂} {ρ₁ ρ₂ : NNReal}
     (h₁ : IsZCDP adj M₁ ρ₁)
     (h₂ : ∀ o₁, IsZCDP adj (K o₁) ρ₂)
     (hK : ∀ d, AEMeasurable (fun o₁ => ((K o₁ d).toMeasure).map (Prod.mk o₁))
-      (M₁ d).toMeasure) :
+      (M₁ d).toMeasure)
+    (hK_meas : ∀ d, Measurable (fun o₁ => (K o₁ d).toMeasure)) :
     IsZCDP adj (M₁.seq K hK) (ρ₁ + ρ₂) where
   ac d₁ d₂ hadj := by
     set f : D → O₁ → Measure (O₁ × O₂) :=
@@ -542,45 +649,6 @@ theorem isZCDP_seq {adj : D → D → Prop}
     have hmeas₁ : AEMeasurable (fun o₁ => f d₁ o₁ S) (M₁ d₁).toMeasure :=
       (Measure.measurable_coe hS_meas).comp_aemeasurable (hK d₁)
     exact (lintegral_eq_zero_iff' hmeas₁).mpr h_ae₂
-  fin d₁ d₂ hadj α hα := by sorry
-  bound d₁ d₂ hadj α hα := by sorry
-
-/-- Convenient version of `isZCDP_seq` for finite first-stage output types.
-
-    For finite O₁, the kernel is measurable (not just AEMeasurable), which
-    enables `Measure.bind_apply` and makes the absolute continuity proof
-    tractable. The `fin` and `bound` fields still require the Rényi divergence
-    chain rule for composition products — see `isZCDP_seq` for details. -/
-theorem isZCDP_seqFinite [Fintype O₁] [MeasurableSingletonClass O₁]
-    {adj : D → D → Prop}
-    {M₁ : Mechanism D O₁} {K : O₁ → Mechanism D O₂} {ρ₁ ρ₂ : NNReal}
-    (h₁ : IsZCDP adj M₁ ρ₁)
-    (h₂ : ∀ o₁, IsZCDP adj (K o₁) ρ₂) :
-    IsZCDP adj (M₁.seqFinite K) (ρ₁ + ρ₂) where
-  ac d₁ d₂ hadj := by
-    -- For finite O₁, the continuation is Measurable (not just AEMeasurable),
-    -- so we can use Measure.bind_apply to reason about the bind measure.
-    set κ : D → O₁ → Measure (O₁ × O₂) :=
-      fun d o₁ => ((K o₁ d).toMeasure).map (Prod.mk o₁)
-    have hκ_meas : ∀ d, Measurable (κ d) := fun _ => measurable_of_finite _
-    -- The seqFinite mechanism's toMeasure is definitionally the bind
-    change (M₁ d₁).toMeasure.bind (κ d₁) ≪ (M₁ d₂).toMeasure.bind (κ d₂)
-    apply Measure.AbsolutelyContinuous.mk
-    intro S hS_meas hS_zero
-    -- Step 1: bind₂(S) = 0 implies kernel₂(o₁)(S) = 0 a.e. under M₁ d₂
-    rw [Measure.bind_apply hS_meas (hκ_meas d₂).aemeasurable] at hS_zero
-    have h_ae : ∀ᵐ o₁ ∂(M₁ d₂).toMeasure, κ d₂ o₁ S = 0 := by
-      rwa [lintegral_eq_zero_iff (measurable_of_finite (fun o₁ => κ d₂ o₁ S))] at hS_zero
-    -- Step 2: kernel₁(o₁)(S) = 0 a.e. under M₁ d₂ (via kernel absolute continuity)
-    have h_ae₁ : ∀ᵐ o₁ ∂(M₁ d₂).toMeasure, κ d₁ o₁ S = 0 := by
-      filter_upwards [h_ae] with o₁ ho₁
-      exact (((h₂ o₁).ac d₁ d₂ hadj).map measurable_prodMk_left) ho₁
-    -- Step 3: transfer to M₁ d₁ via M₁'s absolute continuity
-    have h_ae₂ : ∀ᵐ o₁ ∂(M₁ d₁).toMeasure, κ d₁ o₁ S = 0 :=
-      (h₁.ac d₁ d₂ hadj).ae_le h_ae₁
-    -- Step 4: conclude bind₁(S) = 0
-    rw [Measure.bind_apply hS_meas (hκ_meas d₁).aemeasurable]
-    exact (lintegral_eq_zero_iff (measurable_of_finite (fun o₁ => κ d₁ o₁ S))).mpr h_ae₂
   fin d₁ d₂ hadj α hα := by
     have h_κ_bound : ∀ o₁,
         renyiMoment α (K o₁ d₁).toMeasure (K o₁ d₂).toMeasure ≤
@@ -589,25 +657,25 @@ theorem isZCDP_seqFinite [Fintype O₁] [MeasurableSingletonClass O₁]
         ((h₂ o₁).fin d₁ d₂ hadj α hα)).mp ((h₂ o₁).bound d₁ d₂ hadj α hα)
     exact ne_top_of_le_ne_top
       (ENNReal.mul_ne_top (h₁.fin d₁ d₂ hadj α hα) ENNReal.ofReal_ne_top)
-      (renyiMoment_seqFinite_le (h₁.ac d₁ d₂ hadj)
-        (fun o₁ => (h₂ o₁).ac d₁ d₂ hadj) hα h_κ_bound)
+      (renyiMoment_seq_le (h₁.ac d₁ d₂ hadj)
+        (fun o₁ => (h₂ o₁).ac d₁ d₂ hadj) hα h_κ_bound hK hK_meas)
   bound d₁ d₂ hadj α hα := by
     have h_κ_bound : ∀ o₁,
         renyiMoment α (K o₁ d₁).toMeasure (K o₁ d₂).toMeasure ≤
           ENNReal.ofReal (Real.exp ((α - 1) * (↑ρ₂ * α))) :=
       fun o₁ => (renyiDivergence_le_iff hα (by positivity)
         ((h₂ o₁).fin d₁ d₂ hadj α hα)).mp ((h₂ o₁).bound d₁ d₂ hadj α hα)
-    have h_moment := renyiMoment_seqFinite_le (h₁.ac d₁ d₂ hadj)
-      (fun o₁ => (h₂ o₁).ac d₁ d₂ hadj) hα h_κ_bound
-    have hfin : renyiMoment α (M₁.seqFinite K d₁).toMeasure
-        (M₁.seqFinite K d₂).toMeasure ≠ ⊤ :=
+    have h_moment := renyiMoment_seq_le (h₁.ac d₁ d₂ hadj)
+      (fun o₁ => (h₂ o₁).ac d₁ d₂ hadj) hα h_κ_bound hK hK_meas
+    have hfin : renyiMoment α (M₁.seq K hK d₁).toMeasure
+        (M₁.seq K hK d₂).toMeasure ≠ ⊤ :=
       ne_top_of_le_ne_top
         (ENNReal.mul_ne_top (h₁.fin d₁ d₂ hadj α hα) ENNReal.ofReal_ne_top) h_moment
     have h₁_moment := (renyiDivergence_le_iff hα (by positivity : (0 : ℝ) ≤ ↑ρ₁ * α)
       (h₁.fin d₁ d₂ hadj α hα)).mp (h₁.bound d₁ d₂ hadj α hα)
     simp only [NNReal.coe_add]
     rw [renyiDivergence_le_iff hα (by positivity) hfin]
-    calc renyiMoment α (M₁.seqFinite K d₁).toMeasure (M₁.seqFinite K d₂).toMeasure
+    calc renyiMoment α (M₁.seq K hK d₁).toMeasure (M₁.seq K hK d₂).toMeasure
         ≤ renyiMoment α (M₁ d₁).toMeasure (M₁ d₂).toMeasure *
             ENNReal.ofReal (Real.exp ((α - 1) * (↑ρ₂ * α))) := h_moment
       _ ≤ ENNReal.ofReal (Real.exp ((α - 1) * (↑ρ₁ * α))) *
@@ -616,6 +684,17 @@ theorem isZCDP_seqFinite [Fintype O₁] [MeasurableSingletonClass O₁]
       _ = ENNReal.ofReal (Real.exp ((α - 1) * ((↑ρ₁ + ↑ρ₂) * α))) := by
           rw [← ENNReal.ofReal_mul (Real.exp_pos _).le, ← Real.exp_add]
           congr 1; congr 1; ring
+
+/-- Convenient version of `isZCDP_seq` for finite first-stage output types.
+    Discharges the `Measurable` and `CountableOrCountablyGenerated` requirements
+    automatically via `measurable_of_finite` and `Countable`. -/
+theorem isZCDP_seqFinite [Fintype O₁] [MeasurableSingletonClass O₁]
+    {adj : D → D → Prop}
+    {M₁ : Mechanism D O₁} {K : O₁ → Mechanism D O₂} {ρ₁ ρ₂ : NNReal}
+    (h₁ : IsZCDP adj M₁ ρ₁)
+    (h₂ : ∀ o₁, IsZCDP adj (K o₁) ρ₂) :
+    IsZCDP adj (M₁.seqFinite K) (ρ₁ + ρ₂) :=
+  isZCDP_seq h₁ h₂ _ (fun _ => measurable_of_finite _)
 
 end AdaptiveComposition
 

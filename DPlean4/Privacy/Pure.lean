@@ -35,6 +35,11 @@ the output distributions are ε-close in the pure sense (δ=0).
 
 Adjacency is a relation parameter, not hardcoded. This allows the same mechanism
 to be analyzed under different adjacency notions.
+
+This predicate is **directed**: it constrains `M d₁` against `M d₂` only in the
+direction `adj d₁ d₂`. The two-sided guarantee is obtained automatically when
+`adj` is symmetric (see `isPureDP_symm_of_adj_symm`); for a nonsymmetric custom
+relation, establish both directions explicitly.
 -/
 def IsPureDP (adj : D → D → Prop) (M : Mechanism D O) (ε : NNReal) : Prop :=
   ∀ d₁ d₂, adj d₁ d₂ → PureMeasureClose ε (M d₁) (M d₂)
